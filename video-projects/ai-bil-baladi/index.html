@@ -10,16 +10,16 @@
 @font-face{font-family:K;src:url(fonts/ar-400.woff2);font-weight:400;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
 @font-face{font-family:K;src:url(fonts/ar-700.woff2);font-weight:700;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
 @font-face{font-family:K;src:url(fonts/ar-900.woff2);font-weight:900;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
-:root{--bg:#0b0b0c;--ink:#f2f1ec;--mute:#7c7c84;--acc:#cdf24f;--bad:#ff5a4e;--card:#151518;--line:#2a2a30}
+:root{--bg:#0b0b0c;--ink:#f2f1ec;--mute:#7c7c84;--acc:#338ced;--bad:#e76624;--good:#00a888;--gold:#d28e05;--card:#151518;--line:#2a2a30}
 html,body{margin:0;background:var(--bg);overflow:hidden}
 body{font-family:K,sans-serif;color:var(--ink);width:1920px;height:1080px}
 #stage{position:absolute;inset:0;overflow:hidden;background:var(--bg)}
 #dots{position:absolute;inset:-100px;background-image:radial-gradient(rgba(255,255,255,.075) 1.6px,transparent 1.8px);background-size:44px 44px;z-index:1}
 #vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(0,0,0,.6) 100%);z-index:3}
-#orb{position:absolute;left:0;top:0;width:1000px;height:1000px;margin:-500px 0 0 -500px;border-radius:50%;background:radial-gradient(circle,rgba(205,242,79,.20) 0%,rgba(205,242,79,.07) 35%,rgba(205,242,79,0) 66%);z-index:2}
+#orb{position:absolute;left:0;top:0;width:1000px;height:1000px;margin:-500px 0 0 -500px;border-radius:50%;background:radial-gradient(circle,rgba(51,140,237,.20) 0%,rgba(51,140,237,.07) 35%,rgba(51,140,237,0) 66%);z-index:2}
 #grain{position:absolute;inset:0;width:1920px;height:1080px;z-index:40;opacity:.07;mix-blend-mode:screen;image-rendering:pixelated}
 #chap{position:absolute;top:56px;right:80px;z-index:30;font-size:30px;font-weight:700;color:var(--mute);display:flex;gap:14px;align-items:center}
-#chap b{color:var(--acc);font-weight:900;direction:ltr}
+#chap b{color:var(--gold);font-weight:900;direction:ltr}
 #fade{position:absolute;inset:0;background:#000;z-index:50;opacity:0}
 .sc{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;text-align:center}
 .line{width:max-content;margin:0 auto;white-space:nowrap;line-height:1.35}
@@ -182,14 +182,14 @@ T.headlines = {
 T.chapter = {
   build(s) {
     const lab = el('small', s.root); lab.textContent = 'الجزء'; lab.style.fontSize = '40px'; s.lab = lab;
-    const nm = el('w', s.root, 'div'); nm.style.cssText = 'font-size:280px;font-weight:900;line-height:1.05;direction:ltr;color:transparent;-webkit-text-stroke:4px var(--acc)';
+    const nm = el('w', s.root, 'div'); nm.style.cssText = 'font-size:280px;font-weight:900;line-height:1.05;direction:ltr;color:transparent;-webkit-text-stroke:4px var(--gold)';
     s.num = el('wi', nm, 'span'); s.num.textContent = s.n;
     s.tb = el('main', s.root); s.tb.style.fontSize = '104px'; s.tw = words(s.tb, s.title); fit(s.tb, 1640);
   },
   upd(s, lt) {
     s.lab.style.opacity = prog(lt, .05, .6);
     const p = eo((lt - .1) / .9); s.num.style.transform = `translateY(${(1 - p) * 110}%)`;
-    const f = prog(lt, 1.0, 1.8, eio); s.num.style.color = `rgba(205,242,79,${f})`;
+    const f = prog(lt, 1.0, 1.8, eio); s.num.style.color = `rgba(210,142,5,${f})`;
     animWords(s.tw, lt, .55);
   },
   cues() { return [[0, 'rise', .6], [.4, 'hit', .9]]; }
@@ -214,7 +214,7 @@ T.probs = {
   build(s) {
     s.pb = el('card', s.root); s.pb.style.cssText += ';padding:34px 80px;font-size:92px;font-weight:900;display:flex;gap:28px;align-items:center';
     el('', s.pb, 'span').textContent = s.prompt;
-    const slm = el('w', s.pb, 'span'); s.slot = el('wi acc', slm, 'span'); s.slot.textContent = s.items[0][0];
+    const slm = el('w', s.pb, 'span'); s.slot = el('wi', slm, 'span'); s.slot.style.color = 'var(--good)'; s.slot.textContent = s.items[0][0];
     s.rows = s.items.map(([w, v]) => {
       const r = el('', s.root); r.style.cssText = 'display:grid;grid-template-columns:240px 900px 170px;align-items:center;gap:40px;font-size:76px;font-weight:900';
       const a = el('', r); a.textContent = w; a.style.textAlign = 'right';
@@ -230,7 +230,7 @@ T.probs = {
     s.rows.forEach((r, k) => {
       const t0 = 1.0 + k * .7; const a = spring(lt - t0, 200, 24); r.r.style.opacity = clamp(a * 2) * (k && lt > 6.5 ? lerp(1, .35, prog(lt, 6.5, 7.1)) : 1); r.r.style.transform = `translateY(${(1 - a) * 40}px)`;
       const g = prog(lt, t0 + .2, t0 + 1.6, eio); r.f.style.width = (g * r.v) + '%'; r.n.textContent = Math.round(g * r.v) + '%';
-      const win = !k && lt > 6.5; r.f.style.background = win ? 'var(--acc)' : 'var(--mute)'; r.a.style.color = win ? 'var(--acc)' : 'var(--ink)';
+      const win = !k && lt > 6.5; r.f.style.background = win ? 'var(--good)' : 'var(--mute)'; r.a.style.color = win ? 'var(--good)' : 'var(--ink)';
     });
     s.note.style.opacity = prog(lt, 2.5, 3.3);
     const q = eo((lt - 7.5) / .8); s.slot.style.transform = `translateY(${(1 - q) * 118}%)`;
@@ -242,7 +242,7 @@ const FUNNEL_WORDS = ['كتب', 'مقالات', 'مواقع', 'محادثات', 
 T.funnel = {
   build(s) {
     s.tb = el('main', s.root); s.tb.style.cssText = 'font-size:88px;position:absolute;top:110px;left:0;right:0'; s.tw = words(s.tb, s.title);
-    s.ring = el('', s.root); s.ring.style.cssText = 'position:absolute;left:810px;top:520px;width:300px;height:300px;border-radius:50%;border:4px solid var(--acc);box-shadow:0 0 80px rgba(205,242,79,.35),inset 0 0 60px rgba(205,242,79,.25)';
+    s.ring = el('', s.root); s.ring.style.cssText = 'position:absolute;left:810px;top:520px;width:300px;height:300px;border-radius:50%;border:4px solid var(--acc);box-shadow:0 0 80px rgba(51,140,237,.35),inset 0 0 60px rgba(51,140,237,.25)';
     const R = rng(7);
     s.fw = FUNNEL_WORDS.map((w, i) => {
       const e = el('', s.root); e.textContent = w; e.style.cssText = 'position:absolute;left:0;top:0;font-size:52px;font-weight:700;white-space:nowrap;color:var(--ink)';
@@ -294,8 +294,8 @@ T.checklist = {
     const list = el('', s.root); list.style.cssText = 'display:flex;flex-direction:column;gap:26px;align-items:flex-start;margin-top:10px';
     s.rows = s.items.map(t => {
       const r = el('', list); r.style.cssText = 'display:flex;align-items:center;gap:36px;font-size:70px;font-weight:900;position:relative';
-      const b = el('', r); b.style.cssText = `width:86px;height:86px;border-radius:50%;border:4px solid ${s.mode === 'check' ? 'var(--acc)' : 'var(--line)'};display:flex;align-items:center;justify-content:center;flex:none`;
-      const ic = s.mode === 'check' ? icon('check', b, 64, 'var(--acc)', 12) : null;
+      const b = el('', r); b.style.cssText = `width:86px;height:86px;border-radius:50%;border:4px solid ${s.mode === 'check' ? 'var(--good)' : 'var(--line)'};display:flex;align-items:center;justify-content:center;flex:none`;
+      const ic = s.mode === 'check' ? icon('check', b, 64, 'var(--good)', 12) : null;
       const tx = el('', r, 'span'); tx.textContent = t; tx.style.position = 'relative';
       const st = el('', tx); st.style.cssText = 'position:absolute;left:-10px;right:-10px;top:56%;height:12px;border-radius:6px;background:var(--bad);transform-origin:100% 50%;transform:scaleX(0)';
       return { r, ic, tx, st };
@@ -363,8 +363,8 @@ T.pair = {
     s.tb = el('main', s.root); s.tb.style.fontSize = '96px'; s.tw = words(s.tb, s.title);
     const row = el('', s.root); row.style.cssText = 'display:flex;gap:60px;margin-top:20px';
     s.cs = [s.a, s.b].map(([ic, txt], k) => {
-      const c = el('card', row); c.style.cssText += `;width:700px;height:420px;box-sizing:border-box;padding:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;${k ? 'border-color:var(--acc)' : ''}`;
-      const i = icon(ic, c, 120, k ? 'var(--acc)' : 'var(--ink)', 6);
+      const c = el('card', row); c.style.cssText += `;width:700px;height:420px;box-sizing:border-box;padding:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;${k ? 'border-color:var(--good)' : ''}`;
+      const i = icon(ic, c, 120, k ? 'var(--good)' : 'var(--ink)', 6);
       const t = el('', c); t.style.cssText = 'font-size:62px;font-weight:900;line-height:1.35'; t.innerHTML = txt.replace(/\*(.+?)\*/g, '<span class="acc">$1</span>').replace(/\n/g, '<br>');
       return { c, i };
     });
@@ -403,7 +403,7 @@ T.jobbar = {
 T.step = {
   build(s) {
     const hd = el('', s.root); hd.style.cssText = 'display:flex;align-items:center;gap:44px';
-    s.circ = el('', hd); s.circ.style.cssText = 'width:150px;height:150px;border-radius:50%;background:var(--acc);color:#0b0b0c;font-size:100px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none;line-height:1';
+    s.circ = el('', hd); s.circ.style.cssText = 'width:150px;height:150px;border-radius:50%;background:var(--gold);color:#0b0b0c;font-size:100px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none;line-height:1';
     s.circ.textContent = s.n;
     s.tb = el('main', hd); s.tb.style.fontSize = '100px'; s.tw = words(s.tb, s.title);
     s.c = el('card', s.root); s.c.style.cssText += ';width:1400px;box-sizing:border-box;padding:46px 64px;text-align:right;display:flex;flex-direction:column;gap:22px;margin-top:20px';
@@ -417,7 +417,7 @@ T.step = {
       s.lines = [96, 88, 92, 70, 84, 52].map((w, i) => { const l = el('', s.c); l.style.cssText = `height:30px;border-radius:15px;background:#2c2c33;width:${w}%;transform-origin:100% 50%;position:relative`; return l; });
       s.marks = [];
       const st = el('', s.lines[1]); st.style.cssText = 'position:absolute;right:30%;width:34%;top:11px;height:8px;border-radius:4px;background:var(--acc);transform-origin:100% 50%'; s.marks.push(st);
-      const hl = el('', s.lines[3]); hl.style.cssText = 'position:absolute;right:8%;width:46%;top:-8px;bottom:-8px;border-radius:12px;background:rgba(205,242,79,.28);transform-origin:100% 50%'; s.marks.push(hl);
+      const hl = el('', s.lines[3]); hl.style.cssText = 'position:absolute;right:8%;width:46%;top:-8px;bottom:-8px;border-radius:12px;background:rgba(51,140,237,.28);transform-origin:100% 50%'; s.marks.push(hl);
       const ad = el('', s.lines[5]); ad.style.cssText = 'position:absolute;right:100%;margin-right:20px;width:60%;top:0;height:30px;border-radius:15px;background:var(--acc);transform-origin:100% 50%'; s.marks.push(ad);
       const tag = el('acc', s.c); tag.style.cssText = 'font-size:44px;font-weight:900;display:flex;align-items:center;gap:16px;align-self:flex-end;margin-top:6px'; s.pen = icon('pen', tag, 56, 'var(--acc)', 9); el('', tag, 'span').textContent = 'لمستك'; s.tag = tag;
     }
@@ -448,12 +448,12 @@ T.compare = {
     const row = el('', s.root); row.style.cssText = 'display:flex;gap:70px;align-items:flex-start';
     s.cols = [[s.a, 'طلب عام', 0], [s.b, 'طلب فيه تفاصيل', 1]].map(([txt, head, good]) => {
       const col = el('', row); col.style.cssText = 'width:800px;display:flex;flex-direction:column;gap:26px;text-align:right;position:relative';
-      const h = el('', col); h.style.cssText = `font-size:52px;font-weight:900;color:${good ? 'var(--acc)' : 'var(--mute)'}`; h.textContent = head;
+      const h = el('', col); h.style.cssText = `font-size:52px;font-weight:900;color:${good ? 'var(--good)' : 'var(--mute)'}`; h.textContent = head;
       const p = el('card', col); p.style.cssText += ';padding:30px 40px;font-size:46px;font-weight:700;min-height:190px;line-height:1.45;box-sizing:border-box';
       const q = el('', p, 'span');
       const r = el('card', col); r.style.cssText += ';padding:40px;display:flex;flex-direction:column;gap:22px;box-sizing:border-box;min-height:300px';
       const ls = (good ? [94, 80, 88, 66, 90, 50] : [90, 90, 90, 90]).map(w => { const l = el('', r); l.style.cssText = `height:24px;border-radius:12px;width:${w}%;transform-origin:100% 50%;background:${good ? '#d9d9d2' : '#2c2c33'}`; return l; });
-      const b = el('', col); b.style.cssText = `position:absolute;left:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${good ? 'var(--acc)' : 'var(--bad)'}`;
+      const b = el('', col); b.style.cssText = `position:absolute;left:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${good ? 'var(--good)' : 'var(--bad)'}`;
       const bi = icon(good ? 'check' : 'cross', b, 70, '#0b0b0c', 14);
       return { col, h, p, q, r, ls, b, bi, txt, good };
     });
@@ -496,8 +496,8 @@ T.endcard = {
   build(s) {
     s.lb = el('sub', s.root); s.lw = words(s.lb, 'اتفرج بعد كده');
     s.c = el('card', s.root); s.c.style.cssText += ';width:1000px;height:560px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;border-color:var(--acc);border-width:3px';
-    const g = el('', s.c); g.style.cssText = 'position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,rgba(205,242,79,.18),rgba(0,0,0,0) 60%)';
-    const n = el('', s.c); n.style.cssText = 'font-size:150px;font-weight:900;line-height:1.1;position:relative'; n.innerHTML = '<span class="acc">10</span> طلبات';
+    const g = el('', s.c); g.style.cssText = 'position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,rgba(51,140,237,.18),rgba(0,0,0,0) 60%)';
+    const n = el('', s.c); n.style.cssText = 'font-size:150px;font-weight:900;line-height:1.1;position:relative'; n.innerHTML = '<span style="color:var(--gold)">10</span> طلبات';
     const pl = el('', s.c); pl.style.cssText = 'width:130px;height:130px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;position:relative'; s.pl = pl;
     const p = document.createElementNS(SVGNS, 'svg'); p.setAttribute('viewBox', '0 0 120 120'); p.setAttribute('width', 70); p.setAttribute('height', 70); p.innerHTML = '<path d="M46 30 L92 60 L46 90 Z" fill="#0b0b0c"/>'; pl.appendChild(p);
     s.tb = el('main', s.root); s.tb.style.fontSize = '76px'; s.tw = words(s.tb, 'هتوفرلك *ساعات* كل أسبوع');

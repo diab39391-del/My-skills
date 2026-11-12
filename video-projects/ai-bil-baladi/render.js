@@ -37,7 +37,7 @@ async function shot(p, t, type = 'jpeg') {
   }
   if (mode === 'chunk') {
     const s = +a[0], e = +a[1], out = a[2]; const f0 = Math.round(s * FPS), f1 = Math.round(e * FPS);
-    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '17', '-pix_fmt', 'yuv420p', '-color_range', 'tv', '-colorspace', 'bt709', '-vf', 'scale=in_range=pc:out_range=tv:out_color_matrix=bt709', out], { stdio: ['pipe', 'ignore', 'inherit'] });
+    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'medium', '-crf', '21', '-pix_fmt', 'yuv420p', '-color_range', 'tv', '-colorspace', 'bt709', '-vf', 'scale=in_range=pc:out_range=tv:out_color_matrix=bt709', out], { stdio: ['pipe', 'ignore', 'inherit'] });
     const t0 = Date.now();
     for (let f = f0; f < f1; f++) {
       const buf = await shot(p, f / FPS);
