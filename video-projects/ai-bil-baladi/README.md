@@ -12,3 +12,5 @@ python3 audio.py                                  # synthesized music + SFX -> o
 Then loudnorm to -14 LUFS, concat parts and mux the audio. Preview in a browser: Space = play/pause, arrow keys = +/-1 s.
 
 Fonts: Cairo (SIL Open Font License), from @fontsource/cairo.
+
+3D icons: Microsoft Fluent Emoji 3D (MIT license), from @lobehub/fluent-emoji-3d.

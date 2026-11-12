@@ -32,6 +32,8 @@ body{font-family:K,sans-serif;color:var(--ink);width:1920px;height:1080px}
 .card{background:var(--card);border:2px solid var(--line);border-radius:28px}
 .small{font-size:30px;font-weight:700;color:var(--mute)}
 svg{overflow:visible}
+.i3{display:block;filter:drop-shadow(0 26px 28px rgba(0,0,0,.55))}
+.icrow{display:flex;gap:46px;justify-content:center;margin-bottom:-6px}
 </style>
 </head>
 <body>
@@ -106,6 +108,9 @@ function icon(name, parent, size = 120, color = 'var(--acc)', sw = 7) {
   const ps = ICONS[name].map(d => { const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke', color); p.setAttribute('stroke-width', sw); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-linejoin', 'round'); p.setAttribute('pathLength', '1'); p.style.strokeDasharray = '1'; s.appendChild(p); return p; });
   parent.appendChild(s); return { svg: s, ps };
 }
+const IMGS = [];
+function img3(name, parent, size) { const i = el('i3', parent, 'img'); i.src = 'icons/' + name + '.webp'; i.width = size; i.height = size; IMGS.push(i); return i; }
+function float3(i, lt, t0, seed = 0) { const m = spring(lt - t0, 220, 18); i.style.opacity = clamp(m * 3); i.style.transform = `translateY(${(1 - m) * 70 + Math.sin(lt * 1.8 + seed) * 10}px) rotate(${Math.sin(lt * 1.3 + seed) * 4}deg) scale(${.4 + .6 * m})`; }
 function draw(ic, p) { ic.ps.forEach((q, i) => q.style.strokeDashoffset = 1 - clamp(p * ic.ps.length - i)); }
 function typed(str, lt, t0, cps = 1 / .055) { const n = Math.floor(clamp((lt - t0) * cps, 0, str.length)); return str.slice(0, n); }
 function caret(lt, active) { return (active || Math.floor(lt * 2.4 * 2) % 2 === 0) ? 1 : 0; }
@@ -151,14 +156,14 @@ T.icons3 = {
     s.tb = el('main', s.root); s.tb.style.fontSize = '84px'; s.tw = words(s.tb, s.title);
     const row = el('', s.root); row.style.cssText = 'display:flex;gap:70px;margin-top:30px';
     s.items = s.items.map(([ic, lab]) => {
-      const c = el('card', row); c.style.cssText += ';width:380px;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px';
-      const i = icon(ic, c, 130); const l = el('', c); l.style.cssText = 'font-size:68px;font-weight:900'; l.textContent = lab;
+      const c = el('card', row); c.style.cssText += ';width:400px;height:420px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px';
+      const i = img3(ic, c, 190); const l = el('', c); l.style.cssText = 'font-size:68px;font-weight:900'; l.textContent = lab;
       return { c, i };
     });
   },
   upd(s, lt) {
     animWords(s.tw, lt, .1);
-    s.items.forEach((it, k) => { const t0 = 1.3 + k * 1.2; const m = spring(lt - t0); it.c.style.opacity = clamp(m * 2); it.c.style.transform = `translateY(${(1 - m) * 80}px) scale(${.85 + .15 * m})`; draw(it.i, prog(lt, t0 + .1, t0 + 1.0, eio)); });
+    s.items.forEach((it, k) => { const t0 = 1.3 + k * 1.2; const m = spring(lt - t0); it.c.style.opacity = clamp(m * 2); it.c.style.transform = `translateY(${(1 - m) * 80}px) scale(${.85 + .15 * m})`; float3(it.i, lt, t0 + .1, k); });
   },
   cues() { return [[.1, 'swish', .35], [1.3, 'pop', .6], [2.5, 'pop', .6], [3.7, 'pop', .6]]; }
 };
@@ -167,14 +172,15 @@ T.headlines = {
   build(s) {
     s.lb = el('small', s.root); s.lb.textContent = s.label; s.lb.style.fontSize = '40px';
     s.cards = [s.a, s.b].map((txt, k) => {
-      const c = el('card', s.root); c.style.cssText += `;padding:44px 70px;font-size:76px;font-weight:900;max-width:1500px;${k ? 'color:var(--ink)' : ''}`;
-      const tag = el('small', c); tag.textContent = k ? 'رأي ٢' : 'رأي ١'; tag.style.marginBottom = '6px';
-      el('', c).textContent = txt; return c;
+      const c = el('card', s.root); c.style.cssText += ';padding:36px 70px 36px 60px;font-size:76px;font-weight:900;max-width:1500px;display:flex;align-items:center;gap:44px;text-align:right';
+      c.ic = img3(k ? 'hourglass' : 'globe', c, 140);
+      const col = el('', c); const tag = el('small', col); tag.textContent = k ? 'رأي ٢' : 'رأي ١'; tag.style.marginBottom = '6px';
+      el('', col).textContent = txt; return c;
     });
   },
   upd(s, lt) {
     s.lb.style.opacity = prog(lt, .1, .8);
-    s.cards.forEach((c, k) => { const t0 = .5 + k * 3.2; const m = spring(lt - t0, 170, 24); const dir = k ? -1 : 1; c.style.opacity = clamp(m * 2); c.style.transform = `translateX(${dir * (1 - m) * 260}px) rotate(${dir * -1.5}deg)`; });
+    s.cards.forEach((c, k) => { const t0 = .5 + k * 3.2; const m = spring(lt - t0, 170, 24); const dir = k ? -1 : 1; c.style.opacity = clamp(m * 2); c.style.transform = `translateX(${dir * (1 - m) * 260}px) rotate(${dir * -1.5}deg)`; float3(c.ic, lt, t0 + .25, k * 2); });
   },
   cues() { return [[.5, 'whoosh', .5], [3.7, 'whoosh', .5]]; }
 };
@@ -215,13 +221,13 @@ T.probs = {
     s.pb = el('card', s.root); s.pb.style.cssText += ';padding:34px 80px;font-size:92px;font-weight:900;display:flex;gap:28px;align-items:center';
     el('', s.pb, 'span').textContent = s.prompt;
     const slm = el('w', s.pb, 'span'); s.slot = el('wi', slm, 'span'); s.slot.style.color = 'var(--good)'; s.slot.textContent = s.items[0][0];
-    s.rows = s.items.map(([w, v]) => {
-      const r = el('', s.root); r.style.cssText = 'display:grid;grid-template-columns:240px 900px 170px;align-items:center;gap:40px;font-size:76px;font-weight:900';
-      const a = el('', r); a.textContent = w; a.style.textAlign = 'right';
+    s.rows = s.items.map(([w, v, ic]) => {
+      const r = el('', s.root); r.style.cssText = 'display:grid;grid-template-columns:130px 200px 860px 170px;align-items:center;gap:40px;font-size:76px;font-weight:900';
+      const im = img3(ic, r, 120); const a = el('', r); a.textContent = w; a.style.textAlign = 'right';
       const tr = el('', r); tr.style.cssText = 'position:relative;height:44px;border-radius:22px;background:#1d1d22;overflow:hidden';
       const f = el('', tr); f.style.cssText = 'position:absolute;right:0;top:0;bottom:0;border-radius:22px;background:var(--mute)';
       const n = el('', r); n.style.cssText = 'direction:ltr;text-align:left;font-size:64px';
-      return { r, a, f, n, v };
+      return { r, a, f, n, v, im };
     });
     s.note = el('small', s.root); s.note.textContent = 'مثال توضيحي · الأرقام للتقريب';
   },
@@ -229,7 +235,7 @@ T.probs = {
     const m = spring(lt - .1, 170, 24); s.pb.style.opacity = clamp(m * 2); s.pb.style.transform = `translateY(${(1 - m) * -40}px)`;
     s.rows.forEach((r, k) => {
       const t0 = 1.0 + k * .7; const a = spring(lt - t0, 200, 24); r.r.style.opacity = clamp(a * 2) * (k && lt > 6.5 ? lerp(1, .35, prog(lt, 6.5, 7.1)) : 1); r.r.style.transform = `translateY(${(1 - a) * 40}px)`;
-      const g = prog(lt, t0 + .2, t0 + 1.6, eio); r.f.style.width = (g * r.v) + '%'; r.n.textContent = Math.round(g * r.v) + '%';
+      float3(r.im, lt, t0, k * 2); const g = prog(lt, t0 + .2, t0 + 1.6, eio); r.f.style.width = (g * r.v) + '%'; r.n.textContent = Math.round(g * r.v) + '%';
       const win = !k && lt > 6.5; r.f.style.background = win ? 'var(--good)' : 'var(--mute)'; r.a.style.color = win ? 'var(--good)' : 'var(--ink)';
     });
     s.note.style.opacity = prog(lt, 2.5, 3.3);
@@ -243,10 +249,13 @@ T.funnel = {
   build(s) {
     s.tb = el('main', s.root); s.tb.style.cssText = 'font-size:88px;position:absolute;top:110px;left:0;right:0'; s.tw = words(s.tb, s.title);
     s.ring = el('', s.root); s.ring.style.cssText = 'position:absolute;left:810px;top:520px;width:300px;height:300px;border-radius:50%;border:4px solid var(--acc);box-shadow:0 0 80px rgba(51,140,237,.35),inset 0 0 60px rgba(51,140,237,.25)';
-    const R = rng(7);
+    s.brain = img3('brain', s.root, 190); s.brain.style.cssText = 'position:absolute;left:865px;top:575px';
+    const R = rng(7), FI = ['books', 'news', 'chat', 'memo', 'web', 'laptop', 'mail'];
     s.fw = FUNNEL_WORDS.map((w, i) => {
-      const e = el('', s.root); e.textContent = w; e.style.cssText = 'position:absolute;left:0;top:0;font-size:52px;font-weight:700;white-space:nowrap;color:var(--ink)';
-      return { e, a0: R() * Math.PI * 2, rad: 820 + R() * 240, t0: 1.0 + i * .36, w: e.offsetWidth, h: e.offsetHeight };
+      let e, ww, hh;
+      if (i % 3 === 1) { e = img3(FI[i % FI.length], s.root, 120); e.style.position = 'absolute'; e.style.left = '0'; e.style.top = '0'; ww = hh = 120; }
+      else { e = el('', s.root); e.textContent = w; e.style.cssText = 'position:absolute;left:0;top:0;font-size:52px;font-weight:700;white-space:nowrap;color:var(--ink)'; ww = e.offsetWidth; hh = e.offsetHeight; }
+      return { e, a0: R() * Math.PI * 2, rad: 820 + R() * 240, t0: 1.0 + i * .36, w: ww, h: hh };
     });
   },
   upd(s, lt) {
@@ -261,6 +270,7 @@ T.funnel = {
       f.e.style.transform = `translate(${x - f.w / 2}px,${y - f.h / 2}px) scale(${sc})`;
     });
     s.ring.style.transform = `scale(${rm * (1 + pulse + .02 * Math.sin(lt * 3))})`; s.ring.style.opacity = clamp(rm * 2);
+    const bm = spring(lt - .5, 220, 18); s.brain.style.opacity = clamp(bm * 3); s.brain.style.transform = `scale(${bm * (1 + pulse * 1.5)}) rotate(${Math.sin(lt * 1.3) * 4}deg)`;
   },
   cues(s) { const c = [[.1, 'swish', .3], [.3, 'rise', .4]]; FUNNEL_WORDS.forEach((_, i) => c.push([1.0 + i * .36 + 1.7, 'tick', .22])); return c; }
 };
@@ -296,9 +306,10 @@ T.checklist = {
       const r = el('', list); r.style.cssText = 'display:flex;align-items:center;gap:36px;font-size:70px;font-weight:900;position:relative';
       const b = el('', r); b.style.cssText = `width:86px;height:86px;border-radius:50%;border:4px solid ${s.mode === 'check' ? 'var(--good)' : 'var(--line)'};display:flex;align-items:center;justify-content:center;flex:none`;
       const ic = s.mode === 'check' ? icon('check', b, 64, 'var(--good)', 12) : null;
+      const im = s.icons ? img3(s.icons[s.items.indexOf(t)], r, 92) : null;
       const tx = el('', r, 'span'); tx.textContent = t; tx.style.position = 'relative';
       const st = el('', tx); st.style.cssText = 'position:absolute;left:-10px;right:-10px;top:56%;height:12px;border-radius:6px;background:var(--bad);transform-origin:100% 50%;transform:scaleX(0)';
-      return { r, ic, tx, st };
+      return { r, ic, tx, st, im };
     });
     const n = s.items.length; s.gap = Math.min(2.6, (s.t1 - s.t0 - 5) / n);
   },
@@ -307,6 +318,7 @@ T.checklist = {
     animWords(s.tw, lt, .1);
     s.rows.forEach((r, k) => {
       const tm = T.checklist.times(s, k); const m = spring(lt - tm.in, 200, 24); r.r.style.opacity = clamp(m * 2); r.r.style.transform = `translateX(${-(1 - m) * 80}px)`;
+      if (r.im) float3(r.im, lt, tm.in, k * 2);
       if (r.ic) draw(r.ic, prog(lt, tm.mark, tm.mark + .45, eio));
       else { r.st.style.transform = `scaleX(${prog(lt, tm.mark, tm.mark + .45, eio)})`; r.tx.style.color = lt > tm.mark + .35 ? 'var(--mute)' : 'var(--ink)'; }
     });
@@ -319,7 +331,7 @@ T.citation = {
     s.lb = el('sub', s.root); s.lw = words(s.lb, 'وساعات… يألّف لك *مصدر*');
     const wrap = el('', s.root); wrap.style.position = 'relative';
     s.c = el('card', wrap); s.c.style.cssText += ';padding:60px 90px;display:flex;gap:60px;align-items:center;text-align:right;width:1300px;box-sizing:border-box';
-    s.ic = icon('book', s.c, 170, 'var(--ink)', 6);
+    s.bk = img3('book', s.c, 200);
     const col = el('', s.c); col.style.cssText = 'display:flex;flex-direction:column;gap:10px';
     const a = el('small', col); a.textContent = 'المصدر:'; a.style.fontSize = '40px';
     const b = el('', col); b.textContent = 'كتاب «أسرار العقل الرقمي»'; b.style.cssText = 'font-size:70px;font-weight:900;white-space:nowrap';
@@ -331,7 +343,7 @@ T.citation = {
   upd(s, lt) {
     animWords(s.lw, lt, .05);
     const m = spring(lt - .5, 170, 24); s.c.style.opacity = clamp(m * 2) * lerp(1, .55, prog(lt, 4.6, 5.2)); s.c.style.transform = `translateY(${(1 - m) * 60}px)`;
-    draw(s.ic, prog(lt, .7, 1.8, eio));
+    float3(s.bk, lt, .7);
     const k = spring(lt - 4.5, 320, 22); s.stamp.style.opacity = lt > 4.5 ? 1 : 0; s.stamp.style.transform = `rotate(-9deg) scale(${lerp(1.9, 1, k)})`;
     s.note.style.opacity = prog(lt, 1.5, 2.2);
   },
@@ -363,15 +375,15 @@ T.pair = {
     s.tb = el('main', s.root); s.tb.style.fontSize = '96px'; s.tw = words(s.tb, s.title);
     const row = el('', s.root); row.style.cssText = 'display:flex;gap:60px;margin-top:20px';
     s.cs = [s.a, s.b].map(([ic, txt], k) => {
-      const c = el('card', row); c.style.cssText += `;width:700px;height:420px;box-sizing:border-box;padding:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;${k ? 'border-color:var(--good)' : ''}`;
-      const i = icon(ic, c, 120, k ? 'var(--good)' : 'var(--ink)', 6);
+      const c = el('card', row); c.style.cssText += `;width:700px;height:460px;box-sizing:border-box;padding:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;${k ? 'border-color:var(--good)' : ''}`;
+      const i = img3(ic, c, 160);
       const t = el('', c); t.style.cssText = 'font-size:62px;font-weight:900;line-height:1.35'; t.innerHTML = txt.replace(/\*(.+?)\*/g, '<span class="acc">$1</span>').replace(/\n/g, '<br>');
       return { c, i };
     });
   },
   upd(s, lt) {
     animWords(s.tw, lt, .1);
-    s.cs.forEach((c, k) => { const t0 = 1.0 + k * 4.5; const m = spring(lt - t0, 170, 24); c.c.style.opacity = clamp(m * 2); c.c.style.transform = `translateY(${(1 - m) * 80}px)`; draw(c.i, prog(lt, t0 + .1, t0 + 1.1, eio)); });
+    s.cs.forEach((c, k) => { const t0 = 1.0 + k * 4.5; const m = spring(lt - t0, 170, 24); c.c.style.opacity = clamp(m * 2); c.c.style.transform = `translateY(${(1 - m) * 80}px)`; float3(c.i, lt, t0 + .1, k * 2); });
   },
   cues() { return [[.1, 'swish', .3], [1.0, 'pop', .6], [5.5, 'ding', .6]]; }
 };
@@ -380,9 +392,9 @@ T.jobbar = {
   build(s) {
     s.tb = el('main', s.root); s.tb.style.fontSize = '100px'; s.tw = words(s.tb, 'شغلك = مجموعة *مهام*');
     const wrap = el('', s.root); wrap.style.cssText = 'position:relative;width:1500px;margin-top:90px';
-    s.labs = el('', wrap); s.labs.style.cssText = 'position:absolute;top:-80px;left:0;right:0;height:60px;font-size:46px;font-weight:900';
-    s.lm = el('mu', s.labs); s.lm.style.cssText = 'position:absolute;right:0;width:40%;text-align:center'; s.lm.textContent = 'الآلة';
-    s.ly = el('acc', s.labs); s.ly.style.cssText = 'position:absolute;left:0;width:60%;text-align:center'; s.ly.textContent = 'إنت';
+    s.labs = el('', wrap); s.labs.style.cssText = 'position:absolute;top:-112px;left:0;right:0;height:60px;font-size:46px;font-weight:900';
+    s.lm = el('mu', s.labs); s.lm.style.cssText = 'position:absolute;right:0;width:40%;display:flex;justify-content:center;align-items:center;gap:16px'; s.lmi = img3('robot', s.lm, 84); el('', s.lm, 'span').textContent = 'الآلة';
+    s.ly = el('acc', s.labs); s.ly.style.cssText = 'position:absolute;left:0;width:60%;display:flex;justify-content:center;align-items:center;gap:16px'; s.lyi = img3('person', s.ly, 84); el('', s.ly, 'span').textContent = 'إنت';
     const bar = el('', wrap); bar.style.cssText = 'display:flex;gap:12px;height:150px';
     s.segs = [['مهام متكررة', 40, 0], ['حكم', 20, 1], ['خبرة', 20, 1], ['علاقات', 20, 1]].map(([t, w, you]) => {
       const g = el('', bar); g.style.cssText = `flex:${w} 1 0;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:52px;font-weight:900;transform-origin:100% 50%;${you ? 'background:var(--acc);color:#0b0b0c' : 'background:#24242a;color:var(--mute)'}`;
@@ -393,7 +405,7 @@ T.jobbar = {
   upd(s, lt) {
     animWords(s.tw, lt, .1);
     s.segs.forEach((g, k) => { const t0 = 1.2 + k * .6; const m = spring(lt - t0, 200, 24); g.style.opacity = clamp(m * 2); g.style.transform = `scaleX(${.3 + .7 * m})`; });
-    s.lm.style.opacity = prog(lt, 4.6, 5.3); s.ly.style.opacity = prog(lt, 5.4, 6.1);
+    s.lm.style.opacity = prog(lt, 4.6, 5.3); s.ly.style.opacity = prog(lt, 5.4, 6.1); float3(s.lmi, lt, 4.6, 1); float3(s.lyi, lt, 5.4, 3);
     const d = prog(lt, 9.0, 10.0, eio); s.segs[0].style.opacity = lerp(1, .3, d); s.segs[0].style.transform += ` translateY(${d * 40}px)`;
     animWords(s.nw, lt, 9.6);
   },
@@ -405,7 +417,7 @@ T.step = {
     const hd = el('', s.root); hd.style.cssText = 'display:flex;align-items:center;gap:44px';
     s.circ = el('', hd); s.circ.style.cssText = 'width:150px;height:150px;border-radius:50%;background:var(--gold);color:#0b0b0c;font-size:100px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none;line-height:1';
     s.circ.textContent = s.n;
-    s.tb = el('main', hd); s.tb.style.fontSize = '100px'; s.tw = words(s.tb, s.title);
+    s.tb = el('main', hd); s.tb.style.fontSize = '100px'; s.tw = words(s.tb, s.title); s.hi = img3(s.kind === 'chat' ? 'chat' : 'writing', hd, 140);
     s.c = el('card', s.root); s.c.style.cssText += ';width:1400px;box-sizing:border-box;padding:46px 64px;text-align:right;display:flex;flex-direction:column;gap:22px;margin-top:20px';
     if (s.kind === 'chat') {
       const a = el('small', s.c); a.textContent = 'إنت:';
@@ -424,7 +436,7 @@ T.step = {
   },
   upd(s, lt) {
     const m = spring(lt - .05, 260, 22); s.circ.style.transform = `scale(${m})`;
-    animWords(s.tw, lt, .3);
+    animWords(s.tw, lt, .3); float3(s.hi, lt, .6);
     const c = spring(lt - 1.2, 170, 24); s.c.style.opacity = clamp(c * 2); s.c.style.transform = `translateY(${(1 - c) * 70}px)`;
     if (s.kind === 'chat') {
       const t0 = 2.4, cps = 1 / .055; s.q.textContent = typed(s.text, lt, t0, cps); const end = t0 + s.text.length * .055; s.cr.style.opacity = caret(lt, lt > t0 && lt < end);
@@ -495,7 +507,8 @@ T.morph = {
 T.endcard = {
   build(s) {
     s.lb = el('sub', s.root); s.lw = words(s.lb, 'اتفرج بعد كده');
-    s.c = el('card', s.root); s.c.style.cssText += ';width:1000px;height:560px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;border-color:var(--acc);border-width:3px';
+    const cw = el('', s.root); cw.style.position = 'relative'; s.al = img3('alarm', cw, 190); s.al.style.cssText = 'position:absolute;left:-80px;top:-80px;z-index:2';
+    s.c = el('card', cw); s.c.style.cssText += ';width:1000px;height:560px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;border-color:var(--acc);border-width:3px';
     const g = el('', s.c); g.style.cssText = 'position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,rgba(51,140,237,.18),rgba(0,0,0,0) 60%)';
     const n = el('', s.c); n.style.cssText = 'font-size:150px;font-weight:900;line-height:1.1;position:relative'; n.innerHTML = '<span style="color:var(--gold)">10</span> طلبات';
     const pl = el('', s.c); pl.style.cssText = 'width:130px;height:130px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;position:relative'; s.pl = pl;
@@ -505,7 +518,7 @@ T.endcard = {
   upd(s, lt) {
     animWords(s.lw, lt, .05);
     const m = spring(lt - .6, 170, 24); s.c.style.opacity = clamp(m * 2); s.c.style.transform = `translateY(${(1 - m) * 90}px) scale(${.92 + .08 * m})`;
-    s.pl.style.transform = `scale(${1 + .05 * Math.sin(lt * 4)})`;
+    s.pl.style.transform = `scale(${1 + .05 * Math.sin(lt * 4)})`; float3(s.al, lt, 1.0);
     animWords(s.tw, lt, 1.4);
   },
   cues() { return [[.05, 'swish', .3], [.6, 'hit', .9], [1.4, 'swish', .3]]; }
@@ -513,59 +526,59 @@ T.endcard = {
 
 // ---------- the film (times in seconds, follow the script) ----------
 sc(0, 5, 'hook');
-sc(5, 9.5, 'text', { lines: 'لا *بيفكر*…\nولا *بيفهم*.', size: 140 });
-sc(9.5, 16, 'icons3', { title: 'ومع كده…', items: [['pen', 'بيكتب'], ['brush', 'بيرسم'], ['code', 'بيبرمج']] });
-sc(16, 19.5, 'text', { lines: '*إزاي؟*', size: 300, hero: 1 });
-sc(19.5, 26, 'text', { lines: 'لو فهمت النقطة دي…\nهتفهم *الموضوع* *كله*' });
-sc(26, 30, 'text', { sub: 'الذكاء الاصطناعي', lines: '*بالبلدي*', size: 240, hero: 1 });
+sc(5, 9.5, 'text', { lines: 'لا *بيفكر*…\nولا *بيفهم*.', size: 140, ic: 'robot', icSize: 220 });
+sc(9.5, 16, 'icons3', { title: 'ومع كده…', items: [['writing', 'بيكتب'], ['palette', 'بيرسم'], ['laptop', 'بيبرمج']] });
+sc(16, 19.5, 'text', { lines: '*إزاي؟*', size: 260, hero: 1, ic: 'think', icSize: 200 });
+sc(19.5, 26, 'text', { lines: 'لو فهمت النقطة دي…\nهتفهم *الموضوع* *كله*', ic: 'key' });
+sc(26, 30, 'text', { sub: 'الذكاء الاصطناعي', lines: '*بالبلدي*', size: 220, hero: 1, ic: 'brain', icSize: 200 });
 sc(30, 39, 'headlines', { label: 'كلام بتسمعه كل يوم', a: 'الذكاء الاصطناعي هينهي العالم', b: 'دي موضة… وهتعدي' });
-sc(39, 43, 'text', { lines: 'الاتنين *غلط.*', size: 180, hero: 1 });
-sc(43, 50, 'text', { lines: 'والنتيجة؟ الناس…\nيا *خايفة*… يا *مش* *مهتمة*' });
+sc(39, 43, 'text', { lines: 'الاتنين *غلط.*', size: 180, hero: 1, ic: 'boom', icSize: 200 });
+sc(43, 50, 'text', { lines: 'والنتيجة؟ الناس…\nيا *خايفة*… يا *مش* *مهتمة*', ic: ['fear', 'sleep'] });
 sc(50, 54, 'text', { lines: 'والاتنين *بيخسروا.*', size: 150 });
 sc(54, 60, 'text', { lines: 'فخلينا نشيل الكلام الكبير…\nونفهمه *بالبلدي.*' });
-sc(60, 65, 'chapter', { n: '01', title: 'بيشتغل إزاي أصلاً؟' });
+sc(60, 65, 'chapter', { n: '01', title: 'بيشتغل إزاي أصلاً؟', ic: 'gear', icSize: 150 });
 sc(65, 72, 'typing', { label: 'كمّل الجملة دي:', text: 'النهارده الجو…' });
-sc(72, 84, 'probs', { prompt: 'النهارده الجو', items: [['حر', 62], ['حلو', 23], ['بارد', 9]] });
-sc(84, 92, 'text', { lines: 'دماغك اختارت على طول…\nعشان سمعتها قبل كده *ألف* *مرة*' });
-sc(92, 97, 'text', { lines: 'الذكاء الاصطناعي\nبيعمل كده *بالظبط*' });
+sc(72, 84, 'probs', { prompt: 'النهارده الجو', items: [['حر', 62, 'sun'], ['حلو', 23, 'cloudsun'], ['بارد', 9, 'snow']] });
+sc(84, 92, 'text', { lines: 'دماغك اختارت على طول…\nعشان سمعتها قبل كده *ألف* *مرة*', ic: 'brain' });
+sc(92, 97, 'text', { lines: 'الذكاء الاصطناعي\nبيعمل كده *بالظبط*', ic: 'robot' });
 sc(97, 110, 'funnel', { title: 'اتدرّب على كمية نصوص *ضخمة*' });
-sc(110, 118, 'text', { lines: 'واتعلم أي كلمة بتيجي *غالباً*\nبعد أي كلمة' });
-sc(118, 124, 'text', { lines: 'لما تسأله…\nمش بيدوّر على الإجابة *زيّنا*' });
+sc(110, 118, 'text', { lines: 'واتعلم أي كلمة بتيجي *غالباً*\nبعد أي كلمة', ic: 'chart' });
+sc(118, 124, 'text', { lines: 'لما تسأله…\nمش بيدوّر على الإجابة *زيّنا*', ic: 'search' });
 sc(124, 140, 'chain', { title: 'بيتوقّع الكلمة… ورا الكلمة', toks: ['الذكاء', 'الاصطناعي', 'بيتوقّع', 'الكلمة', 'اللي', 'بعدها', 'واحدة', 'واحدة'] });
 sc(140, 145, 'text', { lines: 'لحد ما الإجابة *تكمل*', size: 130 });
 sc(145, 150, 'text', { lines: 'والتوقع بقى دقيق لدرجة…\nإن النتيجة شكلها *فهم*' });
-sc(150, 158, 'text', { sub: 'بس هو في الحقيقة', lines: '*توقّع* *شاطر* *جداً*', size: 190, hero: 1 });
+sc(150, 158, 'text', { sub: 'بس هو في الحقيقة', lines: '*توقّع* *شاطر* *جداً*', size: 180, hero: 1, ic: 'target', icSize: 200 });
 sc(158, 165, 'text', { lines: 'افتكر الجملة دي…\nهنحتاجها *كمان* *شوية*' });
-sc(165, 170, 'chapter', { n: '02', title: 'بيعمل إيه… وبيغلط في إيه' });
-sc(170, 178, 'text', { lines: 'طالما بيتوقّع…\nهيبقى شاطر في أي حاجة ليها *شكل* *متكرر*' });
-sc(178, 196, 'checklist', { title: 'شاطر *جداً* في', mode: 'check', items: ['يكتب إيميل', 'يلخّص مقال طويل', 'يترجم', 'يشرح حاجة صعبة ببساطة', 'يساعدك في الكود'] });
-sc(196, 201, 'text', { lines: 'بس فيه *مشكلة* *كبيرة*', size: 150 });
+sc(165, 170, 'chapter', { n: '02', title: 'بيعمل إيه… وبيغلط في إيه', ic: 'scale', icSize: 150 });
+sc(170, 178, 'text', { lines: 'طالما بيتوقّع…\nهيبقى شاطر في أي حاجة ليها *شكل* *متكرر*', ic: 'repeat' });
+sc(178, 196, 'checklist', { title: 'شاطر *جداً* في', mode: 'check', icons: ['mail', 'memo', 'web', 'bulb', 'laptop'], items: ['يكتب إيميل', 'يلخّص مقال طويل', 'يترجم', 'يشرح حاجة صعبة ببساطة', 'يساعدك في الكود'] });
+sc(196, 201, 'text', { lines: 'بس فيه *مشكلة* *كبيرة*', size: 150, ic: 'warning', icSize: 200 });
 sc(201, 209, 'text', { lines: 'ساعات بيتوقّع غلط…\nوبنفس *الثقة* *بالظبط*' });
 sc(209, 219, 'citation');
-sc(219, 226, 'glitch', { word: 'الهلوسة', sub: 'لما يألّف حاجة ملهاش أصل… *وبثقة*' });
-sc(226, 236, 'text', { sub: 'القاعدة الذهبية', lines: 'استخدمه في *الشغل*…\nومتصدقهوش في المعلومات من غير *مراجعة*' });
-sc(236, 249, 'pair', { title: 'اعتبره…', a: ['spark', 'متدرّب شاطر جداً\nومتحمس جداً'], b: ['eye', 'بس لازم حد\n*يراجع* *وراه*'] });
-sc(249, 255, 'text', { lines: 'طب…\nهياخد *شغلي؟*', size: 150 });
-sc(255, 260, 'chapter', { n: '03', title: 'هل هياخد شغلك؟' });
+sc(219, 226, 'glitch', { word: 'الهلوسة', sub: 'لما يألّف حاجة ملهاش أصل… *وبثقة*', ic: 'liar', icSize: 190 });
+sc(226, 236, 'text', { sub: 'القاعدة الذهبية', lines: 'استخدمه في *الشغل*…\nومتصدقهوش في المعلومات من غير *مراجعة*', ic: 'key' });
+sc(236, 249, 'pair', { title: 'اعتبره…', a: ['student', 'متدرّب شاطر جداً\nومتحمس جداً'], b: ['monocle', 'بس لازم حد\n*يراجع* *وراه*'] });
+sc(249, 255, 'text', { lines: 'طب…\nهياخد *شغلي؟*', size: 150, ic: 'question' });
+sc(255, 260, 'chapter', { n: '03', title: 'هل هياخد شغلك؟', ic: 'briefcase', icSize: 150 });
 sc(260, 266, 'text', { lines: 'خليني أقولك الحقيقة…\nبدل التطمين *الكداب*' });
-sc(266, 272, 'text', { lines: 'أيوه…\nفيه مهام *هتختفي.*', size: 150, hero: 1 });
+sc(266, 272, 'text', { lines: 'أيوه…\nفيه مهام *هتختفي.*', size: 150, hero: 1, ic: 'files' });
 sc(272, 286, 'checklist', { title: 'زي مثلاً', mode: 'strike', items: ['إدخال بيانات', 'ترجمة بسيطة', 'رد على أسئلة متكررة'] });
-sc(286, 294, 'text', { lines: 'أي حاجة بتتكرر وليها *قالب* *ثابت*…\nالآلة هتعملها أسرع وأرخص' });
-sc(294, 302, 'text', { lines: 'الآلة بتاخد *مهام*…\n~مش~ ~وظايف~', size: 150 });
+sc(286, 294, 'text', { lines: 'أي حاجة بتتكرر وليها *قالب* *ثابت*…\nالآلة هتعملها أسرع وأرخص', ic: 'robot' });
+sc(294, 302, 'text', { lines: 'الآلة بتاخد *مهام*…\n~مش~ ~وظايف~', size: 150, ic: 'briefcase' });
 sc(302, 318, 'jobbar');
-sc(318, 326, 'text', { lines: 'الخطر الحقيقي…\nمش إن الذكاء الاصطناعي *ياخد* *مكانك*' });
-sc(326, 336, 'text', { sub: 'الخطر', lines: 'إن حد *بيعرف* *يستخدمه*\nياخد مكانك', size: 150, hero: 1 });
-sc(336, 352, 'text', { lines: 'زي زمان…\nاللي اتعلم الكمبيوتر سبق اللي رفضه\nنفس الحكاية… بس *أسرع*', size: 96 });
-sc(352, 360, 'text', { lines: 'طب… *أبدأ* *منين؟*', size: 160 });
-sc(360, 364, 'chapter', { n: '04', title: '3 حاجات تعملها من النهارده' });
+sc(318, 326, 'text', { lines: 'الخطر الحقيقي…\nمش إن الذكاء الاصطناعي *ياخد* *مكانك*', ic: 'warning' });
+sc(326, 336, 'text', { sub: 'الخطر', lines: 'إن حد *بيعرف* *يستخدمه*\nياخد مكانك', size: 140, hero: 1, ic: 'laptop' });
+sc(336, 352, 'text', { lines: 'زي زمان…\nاللي اتعلم الكمبيوتر سبق اللي رفضه\nنفس الحكاية… بس *أسرع*', size: 96, ic: 'desktop', icSize: 170 });
+sc(352, 360, 'text', { lines: 'طب… *أبدأ* *منين؟*', size: 160, ic: 'compass', icSize: 200 });
+sc(360, 364, 'chapter', { n: '04', title: '3 حاجات تعملها من النهارده', ic: 'rocket', icSize: 150 });
 sc(364, 381, 'step', { n: '1', title: 'خليه *يشرحلك*', kind: 'chat', text: 'اشرحهالي كأني أول مرة أسمع عنها، وبمثال من حياتي' });
 sc(381, 397, 'step', { n: '2', title: 'أول نسخة عليه… والأخيرة *عليك*', kind: 'draft' });
-sc(397, 402, 'text', { sub: 'تلاتة… وده أهم واحد', lines: '*اديله* *تفاصيل*', size: 190, hero: 1 });
+sc(397, 402, 'text', { sub: 'تلاتة… وده أهم واحد', lines: '*اديله* *تفاصيل*', size: 180, hero: 1, ic: 'magnify', icSize: 190 });
 sc(402, 435, 'compare', { a: 'اكتب إيميل', b: 'اكتب إيميل لمديري أطلب فيه أجازة يومين، بأسلوب محترم ومختصر' });
-sc(435, 440, 'text', { lines: 'فاكر أول جملة قلتهالك؟', size: 120 });
+sc(435, 440, 'text', { lines: 'فاكر أول جملة قلتهالك؟', size: 120, ic: 'think', icSize: 200 });
 sc(440, 447, 'morph', { a: 'مش ذكي.', b: '*توقّع* *شاطر.*' });
-sc(447, 453, 'text', { lines: 'وفي إيد واحد بيفكر…\n*أقوى* *أداة* نزلت من سنين' });
-sc(453, 460, 'text', { lines: 'السؤال مش هيعمل إيه فيك…\nإنت هتعمل *بيه* *إيه*' });
+sc(447, 453, 'text', { lines: 'وفي إيد واحد بيفكر…\n*أقوى* *أداة* نزلت من سنين', ic: 'rocket' });
+sc(453, 460, 'text', { lines: 'السؤال مش هيعمل إيه فيك…\nإنت هتعمل *بيه* *إيه*', ic: 'target' });
 sc(460, 480, 'endcard');
 
 const CHAPS = [[60, '01', 'بيشتغل إزاي'], [165, '02', 'بيعمل إيه وبيغلط في إيه'], [255, '03', 'هياخد شغلك؟'], [360, '04', '3 حاجات من النهارده'], [435, '', '']];
@@ -588,7 +601,9 @@ function grain(t) {
   gx.putImageData(gimg, 0, 0);
 }
 function buildAll() {
-  S.forEach((s, i) => { s.root = el('sc', stage); s.root.style.zIndex = 10; T[s.type].build(s); s.root.style.display = 'none'; });
+  S.forEach((s, i) => { s.root = el('sc', stage); s.root.style.zIndex = 10; T[s.type].build(s);
+    if (s.ic) { const row = el('icrow'); s.root.insertBefore(row, s.root.firstChild); s.icEls = [].concat(s.ic).map(n => img3(n, row, s.icSize || 210)); }
+    s.root.style.display = 'none'; });
   window.CUES = [];
   S.forEach(s => T[s.type].cues(s).forEach(([lt, k, g]) => { if (lt < s.t1 - s.t0) CUES.push([+(s.t0 + lt).toFixed(3), k, g]); }));
   CUES.sort((a, b) => a[0] - b[0]);
@@ -613,6 +628,7 @@ window.seek = (t) => {
     if (lt < -0.001 || lt >= d) { if (s.root.style.display !== 'none') s.root.style.display = 'none'; return; }
     s.root.style.display = 'flex';
     T[s.type].upd(s, lt, d);
+    if (s.icEls) s.icEls.forEach((im, k) => float3(im, lt, .05 + k * .3, k * 2 + s.t0));
     const isLast = s === S[S.length - 1];
     const x = isLast ? 0 : prog(lt, d - .45, d, ei);
     s.root.style.opacity = 1 - x;
@@ -622,7 +638,8 @@ window.seek = (t) => {
   fade.style.opacity = prog(t, DUR - 1.2, DUR, x => clamp(x));
 };
 document.fonts.ready.then(() => Promise.all([400, 700, 900].map(w => document.fonts.load(`${w} 40px K`, 'الذكاء AI 01')))).then(() => {
-  buildAll(); seek(0); window.ready = true;
+  buildAll(); return Promise.all(IMGS.map(i => i.decode().catch(() => console.error('img', i.src))));
+}).then(() => { seek(0); window.ready = true;
 });
 // preview: space = play/pause, arrows = +-1s, ?t=
 let playing = false, t0w = 0, tcur = +(new URLSearchParams(location.search).get('t') || 0);
