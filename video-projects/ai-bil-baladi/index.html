@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>AI bil-baladi</title>
+<style>
+@font-face{font-family:K;src:url(fonts/la-400.woff2);font-weight:400;unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF,U+2212}
+@font-face{font-family:K;src:url(fonts/la-700.woff2);font-weight:700;unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF,U+2212}
+@font-face{font-family:K;src:url(fonts/la-900.woff2);font-weight:900;unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF,U+2212}
+@font-face{font-family:K;src:url(fonts/ar-400.woff2);font-weight:400;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
+@font-face{font-family:K;src:url(fonts/ar-700.woff2);font-weight:700;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
+@font-face{font-family:K;src:url(fonts/ar-900.woff2);font-weight:900;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
+:root{--bg:#0b0b0c;--ink:#f2f1ec;--mute:#7c7c84;--acc:#cdf24f;--bad:#ff5a4e;--card:#151518;--line:#2a2a30}
+html,body{margin:0;background:var(--bg);overflow:hidden}
+body{font-family:K,sans-serif;color:var(--ink);width:1920px;height:1080px}
+#stage{position:absolute;inset:0;overflow:hidden;background:var(--bg)}
+#dots{position:absolute;inset:-100px;background-image:radial-gradient(rgba(255,255,255,.075) 1.6px,transparent 1.8px);background-size:44px 44px;z-index:1}
+#vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 45%,rgba(0,0,0,.6) 100%);z-index:3}
+#orb{position:absolute;left:0;top:0;width:1000px;height:1000px;margin:-500px 0 0 -500px;border-radius:50%;background:radial-gradient(circle,rgba(205,242,79,.20) 0%,rgba(205,242,79,.07) 35%,rgba(205,242,79,0) 66%);z-index:2}
+#grain{position:absolute;inset:0;width:1920px;height:1080px;z-index:40;opacity:.07;mix-blend-mode:screen;image-rendering:pixelated}
+#chap{position:absolute;top:56px;right:80px;z-index:30;font-size:30px;font-weight:700;color:var(--mute);display:flex;gap:14px;align-items:center}
+#chap b{color:var(--acc);font-weight:900;direction:ltr}
+#fade{position:absolute;inset:0;background:#000;z-index:50;opacity:0}
+.sc{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;text-align:center}
+.line{width:max-content;margin:0 auto;white-space:nowrap;line-height:1.35}
+.w{display:inline-block;overflow:hidden;padding:.14em .02em .26em;margin:-.14em .12em -.26em;vertical-align:top}
+.wi{display:inline-block;transform-origin:50% 100%}
+.acc{color:var(--acc)}
+.mu{color:var(--mute)}
+.main{font-weight:900;font-size:120px;letter-spacing:0}
+.sub{font-weight:700;font-size:54px;color:var(--mute)}
+.card{background:var(--card);border:2px solid var(--line);border-radius:28px}
+.small{font-size:30px;font-weight:700;color:var(--mute)}
+svg{overflow:visible}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="dots"></div>
+  <div id="orb"></div>
+  <div id="vig"></div>
+  <div id="chap"><b></b><span></span></div>
+  <canvas id="grain" width="480" height="270"></canvas>
+  <div id="fade"></div>
+</div>
+<script>
+// ---------- math ----------
+const FPS = 30, DUR = 480, W = 1920, H = 1080;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const eo = x => { x = clamp(x); return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); };
+const ei = x => { x = clamp(x); return x * x * x; };
+const eio = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const prog = (t, a, b, e = eo) => e((t - a) / (b - a));
+function spring(t, k = 200, d = 22) { // underdamped step response, damping ratio ~0.78
+  if (t <= 0) return 0;
+  const w0 = Math.sqrt(k), z = d / (2 * w0);
+  if (z >= 1) return 1 - Math.exp(-w0 * t) * (1 + w0 * t);
+  const wd = w0 * Math.sqrt(1 - z * z);
+  return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + z * w0 / wd * Math.sin(wd * t));
+}
+function rng(seed) { let a = seed | 0; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const hash = (n) => rng(n * 9973 + 17)();
+
+// ---------- dom helpers ----------
+const stage = document.getElementById('stage');
+function el(cls, parent, tag = 'div') { const e = document.createElement(tag); if (cls) e.className = cls; if (parent) parent.appendChild(e); return e; }
+function words(parent, text) {
+  const out = [];
+  text.split('\n').forEach(line => {
+    const L = el('line', parent);
+    line.trim().split(/\s+/).forEach(w => {
+      let c = 'wi';
+      let m;
+      if ((m = w.match(/^\*(.+)\*(.*)$/))) { c += ' acc'; w = m[1] + m[2]; }
+      else if ((m = w.match(/^~(.+)~(.*)$/))) { c += ' mu'; w = m[1] + m[2]; }
+      const o = el('w', L, 'span'); const i = el(c, o, 'span'); i.textContent = w; out.push(i);
+    });
+  });
+  return out;
+}
+function animWords(ws, lt, t0, st = .08, d = .8) {
+  ws.forEach((w, i) => {
+    const p = eo((lt - t0 - i * st) / d);
+    w.style.transform = `translateY(${(1 - p) * 118}%) rotate(${(1 - p) * -4}deg)`;
+  });
+}
+function fit(box, maxW) {
+  let m = 0; box.querySelectorAll('.line').forEach(l => m = Math.max(m, l.offsetWidth));
+  if (m > maxW) { const fs = parseFloat(getComputedStyle(box).fontSize); box.style.fontSize = (fs * maxW / m) + 'px'; }
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+const ICONS = {
+  pen: ['M22 100 L30 72 L86 16 L104 34 L48 90 Z', 'M74 28 L92 46'],
+  brush: ['M104 14 L58 60', 'M58 60 C42 54 26 64 26 80 C26 92 18 100 10 104 C36 108 62 100 63 78 Z'],
+  code: ['M40 30 L12 60 L40 90', 'M80 30 L108 60 L80 90', 'M68 20 L52 100'],
+  spark: ['M60 8 L70 50 L112 60 L70 70 L60 112 L50 70 L8 60 L50 50 Z'],
+  eye: ['M8 60 C30 22 90 22 112 60 C90 98 30 98 8 60 Z', 'M60 44 A16 16 0 1 1 59.9 44 Z'],
+  book: ['M60 26 C44 16 24 16 10 20 L10 98 C24 94 44 94 60 104 C76 94 96 94 110 98 L110 20 C96 16 76 16 60 26 Z', 'M60 26 L60 104'],
+  check: ['M28 62 L50 84 L94 36'],
+  cross: ['M34 34 L86 86', 'M86 34 L34 86'],
+  play: ['M44 30 L92 60 L44 90 Z'],
+};
+function icon(name, parent, size = 120, color = 'var(--acc)', sw = 7) {
+  const s = document.createElementNS(SVGNS, 'svg'); s.setAttribute('viewBox', '0 0 120 120'); s.setAttribute('width', size); s.setAttribute('height', size);
+  const ps = ICONS[name].map(d => { const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke', color); p.setAttribute('stroke-width', sw); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-linejoin', 'round'); p.setAttribute('pathLength', '1'); p.style.strokeDasharray = '1'; s.appendChild(p); return p; });
+  parent.appendChild(s); return { svg: s, ps };
+}
+function draw(ic, p) { ic.ps.forEach((q, i) => q.style.strokeDashoffset = 1 - clamp(p * ic.ps.length - i)); }
+function typed(str, lt, t0, cps = 1 / .055) { const n = Math.floor(clamp((lt - t0) * cps, 0, str.length)); return str.slice(0, n); }
+function caret(lt, active) { return (active || Math.floor(lt * 2.4 * 2) % 2 === 0) ? 1 : 0; }
+
+// ---------- scenes ----------
+const S = [];
+function sc(t0, t1, type, o = {}) { S.push(Object.assign({ t0, t1, type }, o)); }
+const T = {}; // type -> {build(s), upd(s,lt,d), cues(s)->[[lt,kind,gain]]}
+
+T.text = {
+  build(s) {
+    if (s.sub) { s.subBox = el('sub', s.root); s.sw = words(s.subBox, s.sub); }
+    s.box = el('main', s.root); s.box.style.fontSize = (s.size || 112) + 'px';
+    s.ws = words(s.box, s.lines); fit(s.box, 1640);
+  },
+  upd(s, lt) { if (s.sw) animWords(s.sw, lt, .05); animWords(s.ws, lt, s.sub ? .45 : .1); },
+  cues(s) { return s.hero ? [[.1, 'hit', .9]] : [[.05, 'swish', .35]]; }
+};
+
+T.hook = {
+  build(s) {
+    s.top = el('sub', s.root); s.top.style.cssText = 'font-size:84px;color:var(--ink)'; s.tw = words(s.top, 'الذكاء الاصطناعي');
+    s.row = el('', s.root); s.row.style.cssText = 'display:flex;gap:56px;align-items:center;font-weight:900;font-size:300px;line-height:1.25';
+    s.mish = el('acc', s.row, 'span'); s.mish.textContent = 'مش';
+    s.zw = el('', s.row, 'span'); s.zw.style.position = 'relative';
+    s.zm = el('w', s.zw, 'span'); s.zi = el('wi', s.zm, 'span'); s.zi.textContent = 'ذكي';
+    s.strike = el('', s.zw); s.strike.style.cssText = 'position:absolute;left:-4%;right:-4%;top:56%;height:22px;border-radius:11px;background:var(--bad);transform-origin:100% 50%';
+    s.shift = (s.mish.offsetWidth + 56) / 2;
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, -.6);
+    const p = eo((lt - .5) / .8); s.zi.style.transform = `translateY(${(1 - p) * 118}%)`;
+    s.strike.style.transform = `scaleX(${prog(lt, 1.6, 2.0, eio)})`;
+    s.zi.style.color = lt > 1.9 ? 'var(--mute)' : 'var(--ink)';
+    const m = spring(lt - 2.2, 260, 24); s.mish.style.opacity = clamp(m * 1.5); s.mish.style.transform = `scale(${.6 + .4 * m})`;
+    s.row.style.transform = `translateX(${s.shift * (1 - eio((lt - 2.1) / .7))}px)`;
+  },
+  cues() { return [[.5, 'hit', .9], [1.6, 'scratch', .6], [2.2, 'pop', .7]]; }
+};
+
+T.icons3 = {
+  build(s) {
+    s.tb = el('main', s.root); s.tb.style.fontSize = '84px'; s.tw = words(s.tb, s.title);
+    const row = el('', s.root); row.style.cssText = 'display:flex;gap:70px;margin-top:30px';
+    s.items = s.items.map(([ic, lab]) => {
+      const c = el('card', row); c.style.cssText += ';width:380px;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px';
+      const i = icon(ic, c, 130); const l = el('', c); l.style.cssText = 'font-size:68px;font-weight:900'; l.textContent = lab;
+      return { c, i };
+    });
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, .1);
+    s.items.forEach((it, k) => { const t0 = 1.3 + k * 1.2; const m = spring(lt - t0); it.c.style.opacity = clamp(m * 2); it.c.style.transform = `translateY(${(1 - m) * 80}px) scale(${.85 + .15 * m})`; draw(it.i, prog(lt, t0 + .1, t0 + 1.0, eio)); });
+  },
+  cues() { return [[.1, 'swish', .35], [1.3, 'pop', .6], [2.5, 'pop', .6], [3.7, 'pop', .6]]; }
+};
+
+T.headlines = {
+  build(s) {
+    s.lb = el('small', s.root); s.lb.textContent = s.label; s.lb.style.fontSize = '40px';
+    s.cards = [s.a, s.b].map((txt, k) => {
+      const c = el('card', s.root); c.style.cssText += `;padding:44px 70px;font-size:76px;font-weight:900;max-width:1500px;${k ? 'color:var(--ink)' : ''}`;
+      const tag = el('small', c); tag.textContent = k ? 'رأي ٢' : 'رأي ١'; tag.style.marginBottom = '6px';
+      el('', c).textContent = txt; return c;
+    });
+  },
+  upd(s, lt) {
+    s.lb.style.opacity = prog(lt, .1, .8);
+    s.cards.forEach((c, k) => { const t0 = .5 + k * 3.2; const m = spring(lt - t0, 170, 24); const dir = k ? -1 : 1; c.style.opacity = clamp(m * 2); c.style.transform = `translateX(${dir * (1 - m) * 260}px) rotate(${dir * -1.5}deg)`; });
+  },
+  cues() { return [[.5, 'whoosh', .5], [3.7, 'whoosh', .5]]; }
+};
+
+T.chapter = {
+  build(s) {
+    const lab = el('small', s.root); lab.textContent = 'الجزء'; lab.style.fontSize = '40px'; s.lab = lab;
+    const nm = el('w', s.root, 'div'); nm.style.cssText = 'font-size:280px;font-weight:900;line-height:1.05;direction:ltr;color:transparent;-webkit-text-stroke:4px var(--acc)';
+    s.num = el('wi', nm, 'span'); s.num.textContent = s.n;
+    s.tb = el('main', s.root); s.tb.style.fontSize = '104px'; s.tw = words(s.tb, s.title); fit(s.tb, 1640);
+  },
+  upd(s, lt) {
+    s.lab.style.opacity = prog(lt, .05, .6);
+    const p = eo((lt - .1) / .9); s.num.style.transform = `translateY(${(1 - p) * 110}%)`;
+    const f = prog(lt, 1.0, 1.8, eio); s.num.style.color = `rgba(205,242,79,${f})`;
+    animWords(s.tw, lt, .55);
+  },
+  cues() { return [[0, 'rise', .6], [.4, 'hit', .9]]; }
+};
+
+T.typing = {
+  build(s) {
+    s.lb = el('sub', s.root); s.lw = words(s.lb, s.label);
+    s.box = el('card', s.root); s.box.style.cssText += ';padding:50px 90px;min-width:1100px;font-size:120px;font-weight:900;display:flex;align-items:center;justify-content:flex-start;gap:6px;min-height:180px';
+    s.tx = el('', s.box, 'span'); s.cr = el('', s.box, 'span'); s.cr.style.cssText = 'width:8px;height:120px;background:var(--acc);border-radius:4px;display:inline-block';
+  },
+  upd(s, lt) {
+    animWords(s.lw, lt, .05);
+    const m = spring(lt - .3, 170, 24); s.box.style.opacity = clamp(m * 2); s.box.style.transform = `translateY(${(1 - m) * 50}px)`;
+    const t0 = 1.2; s.tx.textContent = typed(s.text, lt, t0, 1 / .11);
+    const typing = lt > t0 && lt < t0 + s.text.length * .11; s.cr.style.opacity = caret(lt, typing);
+  },
+  cues(s) { const c = [[.05, 'swish', .3]]; for (let i = 0; i < s.text.length; i++) if (s.text[i] !== ' ') c.push([1.2 + i * .11, 'tick', .35]); return c; }
+};
+
+T.probs = {
+  build(s) {
+    s.pb = el('card', s.root); s.pb.style.cssText += ';padding:34px 80px;font-size:92px;font-weight:900;display:flex;gap:28px;align-items:center';
+    el('', s.pb, 'span').textContent = s.prompt;
+    const slm = el('w', s.pb, 'span'); s.slot = el('wi acc', slm, 'span'); s.slot.textContent = s.items[0][0];
+    s.rows = s.items.map(([w, v]) => {
+      const r = el('', s.root); r.style.cssText = 'display:grid;grid-template-columns:240px 900px 170px;align-items:center;gap:40px;font-size:76px;font-weight:900';
+      const a = el('', r); a.textContent = w; a.style.textAlign = 'right';
+      const tr = el('', r); tr.style.cssText = 'position:relative;height:44px;border-radius:22px;background:#1d1d22;overflow:hidden';
+      const f = el('', tr); f.style.cssText = 'position:absolute;right:0;top:0;bottom:0;border-radius:22px;background:var(--mute)';
+      const n = el('', r); n.style.cssText = 'direction:ltr;text-align:left;font-size:64px';
+      return { r, a, f, n, v };
+    });
+    s.note = el('small', s.root); s.note.textContent = 'مثال توضيحي · الأرقام للتقريب';
+  },
+  upd(s, lt) {
+    const m = spring(lt - .1, 170, 24); s.pb.style.opacity = clamp(m * 2); s.pb.style.transform = `translateY(${(1 - m) * -40}px)`;
+    s.rows.forEach((r, k) => {
+      const t0 = 1.0 + k * .7; const a = spring(lt - t0, 200, 24); r.r.style.opacity = clamp(a * 2) * (k && lt > 6.5 ? lerp(1, .35, prog(lt, 6.5, 7.1)) : 1); r.r.style.transform = `translateY(${(1 - a) * 40}px)`;
+      const g = prog(lt, t0 + .2, t0 + 1.6, eio); r.f.style.width = (g * r.v) + '%'; r.n.textContent = Math.round(g * r.v) + '%';
+      const win = !k && lt > 6.5; r.f.style.background = win ? 'var(--acc)' : 'var(--mute)'; r.a.style.color = win ? 'var(--acc)' : 'var(--ink)';
+    });
+    s.note.style.opacity = prog(lt, 2.5, 3.3);
+    const q = eo((lt - 7.5) / .8); s.slot.style.transform = `translateY(${(1 - q) * 118}%)`;
+  },
+  cues() { return [[.1, 'swish', .3], [1.0, 'pop', .5], [1.7, 'pop', .5], [2.4, 'pop', .5], [6.5, 'ding', .5], [7.5, 'pop', .7]]; }
+};
+
+const FUNNEL_WORDS = ['كتب', 'مقالات', 'مواقع', 'محادثات', 'أخبار', 'قصص', 'أكواد', 'تعليقات', 'وصفات', 'أشعار', 'شروحات', 'منتديات', 'رسايل', 'كتب', 'أبحاث', 'ترجمات', 'مقالات', 'قواميس', 'مواقع', 'أسئلة', 'إجابات', 'روايات', 'محادثات', 'تقارير', 'أكواد', 'أخبار', 'قصص', 'تعليقات'];
+T.funnel = {
+  build(s) {
+    s.tb = el('main', s.root); s.tb.style.cssText = 'font-size:88px;position:absolute;top:110px;left:0;right:0'; s.tw = words(s.tb, s.title);
+    s.ring = el('', s.root); s.ring.style.cssText = 'position:absolute;left:810px;top:520px;width:300px;height:300px;border-radius:50%;border:4px solid var(--acc);box-shadow:0 0 80px rgba(205,242,79,.35),inset 0 0 60px rgba(205,242,79,.25)';
+    const R = rng(7);
+    s.fw = FUNNEL_WORDS.map((w, i) => {
+      const e = el('', s.root); e.textContent = w; e.style.cssText = 'position:absolute;left:0;top:0;font-size:52px;font-weight:700;white-space:nowrap;color:var(--ink)';
+      return { e, a0: R() * Math.PI * 2, rad: 820 + R() * 240, t0: 1.0 + i * .36, w: e.offsetWidth, h: e.offsetHeight };
+    });
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, .1);
+    const rm = spring(lt - .3, 170, 24); let pulse = 0;
+    s.fw.forEach(f => {
+      const p = clamp((lt - f.t0) / 1.7); const vis = lt > f.t0 && p < 1; f.e.style.opacity = vis ? Math.min(prog(p, 0, .12, x => x), 1 - prog(p, .8, 1, x => x)) : 0;
+      if (lt > f.t0 + 1.7) pulse += Math.exp(-(lt - f.t0 - 1.7) * 5) * .06;
+      if (!vis) return;
+      const a = f.a0 + 1.1 * eio(p), r = f.rad * (1 - eio(p));
+      const x = 960 + Math.cos(a) * r, y = 670 + Math.sin(a) * r * .5; const sc = 1 - .75 * eio(p);
+      f.e.style.transform = `translate(${x - f.w / 2}px,${y - f.h / 2}px) scale(${sc})`;
+    });
+    s.ring.style.transform = `scale(${rm * (1 + pulse + .02 * Math.sin(lt * 3))})`; s.ring.style.opacity = clamp(rm * 2);
+  },
+  cues(s) { const c = [[.1, 'swish', .3], [.3, 'rise', .4]]; FUNNEL_WORDS.forEach((_, i) => c.push([1.0 + i * .36 + 1.7, 'tick', .22])); return c; }
+};
+
+T.chain = {
+  build(s) {
+    s.tb = el('main', s.root); s.tb.style.fontSize = '92px'; s.tw = words(s.tb, s.title);
+    const wrap = el('', s.root); wrap.style.cssText = 'position:relative;margin-top:50px';
+    s.row = el('', wrap); s.row.style.cssText = 'display:flex;gap:30px;font-size:84px;font-weight:900';
+    s.tk = s.toks.map(t => { const m = el('w', s.row, 'span'); m.style.margin = '-.14em 0 -.26em'; const i = el('wi', m, 'span'); i.textContent = t; return { m, i }; });
+    s.ptr = el('', wrap); s.ptr.style.cssText = 'position:absolute;top:150px;left:0;font-size:36px;font-weight:700;color:var(--acc);white-space:nowrap;text-align:center';
+    s.ptr.innerHTML = '<div style="font-size:44px;line-height:1">&#9650;</div>الكلمة اللي بعدها';
+    if (s.row.offsetWidth > 1640) s.row.style.fontSize = (84 * 1640 / s.row.offsetWidth) + 'px';
+    s.pw = s.ptr.offsetWidth; s.cx = s.tk.map(t => t.m.offsetLeft + t.m.offsetWidth / 2);
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, .1);
+    let cur = -1;
+    s.tk.forEach((t, k) => { const t0 = 1.6 + k * 1.55; const p = eo((lt - t0) / .7); t.i.style.transform = `translateY(${(1 - p) * 118}%)`; if (lt >= t0) cur = k; });
+    s.tk.forEach((t, k) => t.i.style.color = k === cur ? 'var(--acc)' : 'var(--ink)');
+    if (cur < 0) { s.ptr.style.opacity = 0; return; }
+    let x = s.cx[0]; for (let k = 1; k <= cur; k++) { const t0 = 1.6 + k * 1.55; x += (s.cx[k] - s.cx[k - 1]) * spring(lt - t0, 170, 24); }
+    s.ptr.style.opacity = prog(lt, 1.6, 2.2); s.ptr.style.transform = `translateX(${x - s.pw / 2}px)`;
+  },
+  cues(s) { const c = [[.1, 'swish', .3]]; s.toks.forEach((_, k) => c.push([1.6 + k * 1.55, 'pop', .5])); return c; }
+};
+
+T.checklist = {
+  build(s) {
+    s.tb = el('main', s.root); s.tb.style.fontSize = '96px'; s.tw = words(s.tb, s.title);
+    const list = el('', s.root); list.style.cssText = 'display:flex;flex-direction:column;gap:26px;align-items:flex-start;margin-top:10px';
+    s.rows = s.items.map(t => {
+      const r = el('', list); r.style.cssText = 'display:flex;align-items:center;gap:36px;font-size:70px;font-weight:900;position:relative';
+      const b = el('', r); b.style.cssText = `width:86px;height:86px;border-radius:50%;border:4px solid ${s.mode === 'check' ? 'var(--acc)' : 'var(--line)'};display:flex;align-items:center;justify-content:center;flex:none`;
+      const ic = s.mode === 'check' ? icon('check', b, 64, 'var(--acc)', 12) : null;
+      const tx = el('', r, 'span'); tx.textContent = t; tx.style.position = 'relative';
+      const st = el('', tx); st.style.cssText = 'position:absolute;left:-10px;right:-10px;top:56%;height:12px;border-radius:6px;background:var(--bad);transform-origin:100% 50%;transform:scaleX(0)';
+      return { r, ic, tx, st };
+    });
+    const n = s.items.length; s.gap = Math.min(2.6, (s.t1 - s.t0 - 5) / n);
+  },
+  times(s, k) { return s.mode === 'check' ? { in: 1.2 + k * s.gap, mark: 1.5 + k * s.gap } : { in: 1.0 + k * .7, mark: 3.6 + k * 2.4 }; },
+  upd(s, lt) {
+    animWords(s.tw, lt, .1);
+    s.rows.forEach((r, k) => {
+      const tm = T.checklist.times(s, k); const m = spring(lt - tm.in, 200, 24); r.r.style.opacity = clamp(m * 2); r.r.style.transform = `translateX(${-(1 - m) * 80}px)`;
+      if (r.ic) draw(r.ic, prog(lt, tm.mark, tm.mark + .45, eio));
+      else { r.st.style.transform = `scaleX(${prog(lt, tm.mark, tm.mark + .45, eio)})`; r.tx.style.color = lt > tm.mark + .35 ? 'var(--mute)' : 'var(--ink)'; }
+    });
+  },
+  cues(s) { const c = [[.1, 'swish', .3]]; s.items.forEach((_, k) => { const tm = T.checklist.times(s, k); c.push([tm.in, 'pop', .45]); c.push([tm.mark, s.mode === 'check' ? 'ding' : 'scratch', .5]); }); return c; }
+};
+
+T.citation = {
+  build(s) {
+    s.lb = el('sub', s.root); s.lw = words(s.lb, 'وساعات… يألّف لك *مصدر*');
+    const wrap = el('', s.root); wrap.style.position = 'relative';
+    s.c = el('card', wrap); s.c.style.cssText += ';padding:60px 90px;display:flex;gap:60px;align-items:center;text-align:right;width:1300px;box-sizing:border-box';
+    s.ic = icon('book', s.c, 170, 'var(--ink)', 6);
+    const col = el('', s.c); col.style.cssText = 'display:flex;flex-direction:column;gap:10px';
+    const a = el('small', col); a.textContent = 'المصدر:'; a.style.fontSize = '40px';
+    const b = el('', col); b.textContent = 'كتاب «أسرار العقل الرقمي»'; b.style.cssText = 'font-size:70px;font-weight:900;white-space:nowrap';
+    const c = el('small', col); c.textContent = 'الطبعة التالتة · صفحة 214'; c.style.fontSize = '44px';
+    s.stamp = el('', wrap); s.stamp.style.cssText = 'position:absolute;left:-50px;bottom:-75px;padding:10px 46px;border:8px solid var(--bad);border-radius:20px;color:var(--bad);font-size:96px;font-weight:900;background:rgba(11,11,12,.85)';
+    s.stamp.textContent = 'مش موجود';
+    s.note = el('small', s.root); s.note.textContent = 'مثال توضيحي'; s.note.style.marginTop = '70px';
+  },
+  upd(s, lt) {
+    animWords(s.lw, lt, .05);
+    const m = spring(lt - .5, 170, 24); s.c.style.opacity = clamp(m * 2) * lerp(1, .55, prog(lt, 4.6, 5.2)); s.c.style.transform = `translateY(${(1 - m) * 60}px)`;
+    draw(s.ic, prog(lt, .7, 1.8, eio));
+    const k = spring(lt - 4.5, 320, 22); s.stamp.style.opacity = lt > 4.5 ? 1 : 0; s.stamp.style.transform = `rotate(-9deg) scale(${lerp(1.9, 1, k)})`;
+    s.note.style.opacity = prog(lt, 1.5, 2.2);
+  },
+  cues() { return [[.05, 'swish', .3], [.5, 'whoosh', .4], [4.5, 'stamp', 1]]; }
+};
+
+const GL = [[.2, .65], [1.0, 1.3], [2.0, 2.3], [4.6, 4.85]];
+T.glitch = {
+  build(s) {
+    const box = el('', s.root); box.style.cssText = 'position:relative;font-size:250px;font-weight:900;line-height:1.3';
+    s.layers = ['var(--bad)', 'var(--acc)', 'var(--ink)'].map((c, i) => { const e = el('', box); e.textContent = s.word; e.style.cssText = `color:${c};${i < 2 ? 'position:absolute;inset:0;mix-blend-mode:screen;opacity:.9' : 'position:relative'}`; return e; });
+    s.sb = el('sub', s.root); s.sw = words(s.sb, s.sub);
+  },
+  upd(s, lt) {
+    const m = spring(lt - .05, 260, 24); s.layers[2].parentNode.style.transform = `scale(${.9 + .1 * m})`; s.layers[2].parentNode.style.opacity = clamp(m * 2);
+    const on = GL.some(([a, b]) => lt >= a && lt < b); const step = Math.floor(lt * 24);
+    const r = rng(step + 3);
+    s.layers.forEach((l, i) => {
+      if (on) { const dx = (r() - .5) * 46, dy = (r() - .5) * 14; const y0 = Math.floor(r() * 70), y1 = y0 + 10 + Math.floor(r() * 30); l.style.transform = `translate(${i < 2 ? dx * (i ? 1 : -1) : dx * .3}px,${dy}px)`; l.style.clipPath = i < 2 ? `inset(${y0}% 0 ${100 - y1}% 0)` : 'none'; l.style.opacity = i < 2 ? .9 : 1; }
+      else { l.style.transform = 'none'; l.style.clipPath = 'none'; if (i < 2) l.style.opacity = 0; }
+    });
+    animWords(s.sw, lt, 1.4);
+  },
+  cues() { return GL.map(([a, b]) => [a, 'glitch', .5 * (b - a) / .3]); }
+};
+
+T.pair = {
+  build(s) {
+    s.tb = el('main', s.root); s.tb.style.fontSize = '96px'; s.tw = words(s.tb, s.title);
+    const row = el('', s.root); row.style.cssText = 'display:flex;gap:60px;margin-top:20px';
+    s.cs = [s.a, s.b].map(([ic, txt], k) => {
+      const c = el('card', row); c.style.cssText += `;width:700px;height:420px;box-sizing:border-box;padding:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;${k ? 'border-color:var(--acc)' : ''}`;
+      const i = icon(ic, c, 120, k ? 'var(--acc)' : 'var(--ink)', 6);
+      const t = el('', c); t.style.cssText = 'font-size:62px;font-weight:900;line-height:1.35'; t.innerHTML = txt.replace(/\*(.+?)\*/g, '<span class="acc">$1</span>').replace(/\n/g, '<br>');
+      return { c, i };
+    });
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, .1);
+    s.cs.forEach((c, k) => { const t0 = 1.0 + k * 4.5; const m = spring(lt - t0, 170, 24); c.c.style.opacity = clamp(m * 2); c.c.style.transform = `translateY(${(1 - m) * 80}px)`; draw(c.i, prog(lt, t0 + .1, t0 + 1.1, eio)); });
+  },
+  cues() { return [[.1, 'swish', .3], [1.0, 'pop', .6], [5.5, 'ding', .6]]; }
+};
+
+T.jobbar = {
+  build(s) {
+    s.tb = el('main', s.root); s.tb.style.fontSize = '100px'; s.tw = words(s.tb, 'شغلك = مجموعة *مهام*');
+    const wrap = el('', s.root); wrap.style.cssText = 'position:relative;width:1500px;margin-top:90px';
+    s.labs = el('', wrap); s.labs.style.cssText = 'position:absolute;top:-80px;left:0;right:0;height:60px;font-size:46px;font-weight:900';
+    s.lm = el('mu', s.labs); s.lm.style.cssText = 'position:absolute;right:0;width:40%;text-align:center'; s.lm.textContent = 'الآلة';
+    s.ly = el('acc', s.labs); s.ly.style.cssText = 'position:absolute;left:0;width:60%;text-align:center'; s.ly.textContent = 'إنت';
+    const bar = el('', wrap); bar.style.cssText = 'display:flex;gap:12px;height:150px';
+    s.segs = [['مهام متكررة', 40, 0], ['حكم', 20, 1], ['خبرة', 20, 1], ['علاقات', 20, 1]].map(([t, w, you]) => {
+      const g = el('', bar); g.style.cssText = `flex:${w} 1 0;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:52px;font-weight:900;transform-origin:100% 50%;${you ? 'background:var(--acc);color:#0b0b0c' : 'background:#24242a;color:var(--mute)'}`;
+      g.textContent = t; return g;
+    });
+    s.note = el('sub', s.root); s.note.style.cssText = 'margin-top:60px;font-size:58px'; s.nw = words(s.note, 'الجزء المتكرر هو اللي *هيتغير*');
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, .1);
+    s.segs.forEach((g, k) => { const t0 = 1.2 + k * .6; const m = spring(lt - t0, 200, 24); g.style.opacity = clamp(m * 2); g.style.transform = `scaleX(${.3 + .7 * m})`; });
+    s.lm.style.opacity = prog(lt, 4.6, 5.3); s.ly.style.opacity = prog(lt, 5.4, 6.1);
+    const d = prog(lt, 9.0, 10.0, eio); s.segs[0].style.opacity = lerp(1, .3, d); s.segs[0].style.transform += ` translateY(${d * 40}px)`;
+    animWords(s.nw, lt, 9.6);
+  },
+  cues() { return [[.1, 'swish', .3], [1.2, 'pop', .5], [1.8, 'pop', .5], [2.4, 'pop', .5], [3.0, 'pop', .5], [4.6, 'tick', .4], [5.4, 'ding', .5], [9.0, 'whoosh', .5]]; }
+};
+
+T.step = {
+  build(s) {
+    const hd = el('', s.root); hd.style.cssText = 'display:flex;align-items:center;gap:44px';
+    s.circ = el('', hd); s.circ.style.cssText = 'width:150px;height:150px;border-radius:50%;background:var(--acc);color:#0b0b0c;font-size:100px;font-weight:900;display:flex;align-items:center;justify-content:center;flex:none;line-height:1';
+    s.circ.textContent = s.n;
+    s.tb = el('main', hd); s.tb.style.fontSize = '100px'; s.tw = words(s.tb, s.title);
+    s.c = el('card', s.root); s.c.style.cssText += ';width:1400px;box-sizing:border-box;padding:46px 64px;text-align:right;display:flex;flex-direction:column;gap:22px;margin-top:20px';
+    if (s.kind === 'chat') {
+      const a = el('small', s.c); a.textContent = 'إنت:';
+      const q = el('', s.c); q.style.cssText = 'font-size:58px;font-weight:700;min-height:160px;line-height:1.4'; s.q = el('', q, 'span'); s.cr = el('', q, 'span'); s.cr.style.cssText = 'display:inline-block;width:6px;height:58px;background:var(--acc);margin-right:6px;vertical-align:middle';
+      const b = el('small', s.c); b.textContent = 'الذكاء الاصطناعي:'; b.style.marginTop = '10px'; s.ans = [b];
+      [92, 78, 60].forEach(w => { const l = el('', s.c); l.style.cssText = `height:26px;border-radius:13px;background:#2c2c33;width:${w}%;transform-origin:100% 50%`; s.ans.push(l); });
+    } else {
+      const a = el('small', s.c); a.textContent = 'المسودة';
+      s.lines = [96, 88, 92, 70, 84, 52].map((w, i) => { const l = el('', s.c); l.style.cssText = `height:30px;border-radius:15px;background:#2c2c33;width:${w}%;transform-origin:100% 50%;position:relative`; return l; });
+      s.marks = [];
+      const st = el('', s.lines[1]); st.style.cssText = 'position:absolute;right:30%;width:34%;top:11px;height:8px;border-radius:4px;background:var(--acc);transform-origin:100% 50%'; s.marks.push(st);
+      const hl = el('', s.lines[3]); hl.style.cssText = 'position:absolute;right:8%;width:46%;top:-8px;bottom:-8px;border-radius:12px;background:rgba(205,242,79,.28);transform-origin:100% 50%'; s.marks.push(hl);
+      const ad = el('', s.lines[5]); ad.style.cssText = 'position:absolute;right:100%;margin-right:20px;width:60%;top:0;height:30px;border-radius:15px;background:var(--acc);transform-origin:100% 50%'; s.marks.push(ad);
+      const tag = el('acc', s.c); tag.style.cssText = 'font-size:44px;font-weight:900;display:flex;align-items:center;gap:16px;align-self:flex-end;margin-top:6px'; s.pen = icon('pen', tag, 56, 'var(--acc)', 9); el('', tag, 'span').textContent = 'لمستك'; s.tag = tag;
+    }
+  },
+  upd(s, lt) {
+    const m = spring(lt - .05, 260, 22); s.circ.style.transform = `scale(${m})`;
+    animWords(s.tw, lt, .3);
+    const c = spring(lt - 1.2, 170, 24); s.c.style.opacity = clamp(c * 2); s.c.style.transform = `translateY(${(1 - c) * 70}px)`;
+    if (s.kind === 'chat') {
+      const t0 = 2.4, cps = 1 / .055; s.q.textContent = typed(s.text, lt, t0, cps); const end = t0 + s.text.length * .055; s.cr.style.opacity = caret(lt, lt > t0 && lt < end);
+      s.ans.forEach((l, k) => { const a = prog(lt, end + 1 + k * .35, end + 1.6 + k * .35, eio); l.style.opacity = a; if (k) l.style.transform = `scaleX(${a})`; });
+    } else {
+      s.lines.forEach((l, k) => l.style.transform = `scaleX(${prog(lt, 1.8 + k * .22, 2.6 + k * .22, eio)})`);
+      s.marks.forEach((q, k) => q.style.transform = `scaleX(${prog(lt, 5.5 + k * 1.3, 6.1 + k * 1.3, eio)})`);
+      s.tag.style.opacity = prog(lt, 9.6, 10.2); draw(s.pen, prog(lt, 9.6, 10.6, eio));
+    }
+  },
+  cues(s) {
+    const c = [[.05, 'pop', .8], [.3, 'swish', .3], [1.2, 'whoosh', .4]];
+    if (s.kind === 'chat') { for (let i = 0; i < s.text.length; i += 2) if (s.text[i] !== ' ') c.push([2.4 + i * .055, 'tick', .25]); const end = 2.4 + s.text.length * .055; c.push([end + 1, 'ding', .45]); }
+    else { [5.5, 6.8, 8.1].forEach(t => c.push([t, 'scratch', .35])); c.push([9.6, 'ding', .5]); }
+    return c;
+  }
+};
+
+T.compare = {
+  build(s) {
+    const row = el('', s.root); row.style.cssText = 'display:flex;gap:70px;align-items:flex-start';
+    s.cols = [[s.a, 'طلب عام', 0], [s.b, 'طلب فيه تفاصيل', 1]].map(([txt, head, good]) => {
+      const col = el('', row); col.style.cssText = 'width:800px;display:flex;flex-direction:column;gap:26px;text-align:right;position:relative';
+      const h = el('', col); h.style.cssText = `font-size:52px;font-weight:900;color:${good ? 'var(--acc)' : 'var(--mute)'}`; h.textContent = head;
+      const p = el('card', col); p.style.cssText += ';padding:30px 40px;font-size:46px;font-weight:700;min-height:190px;line-height:1.45;box-sizing:border-box';
+      const q = el('', p, 'span');
+      const r = el('card', col); r.style.cssText += ';padding:40px;display:flex;flex-direction:column;gap:22px;box-sizing:border-box;min-height:300px';
+      const ls = (good ? [94, 80, 88, 66, 90, 50] : [90, 90, 90, 90]).map(w => { const l = el('', r); l.style.cssText = `height:24px;border-radius:12px;width:${w}%;transform-origin:100% 50%;background:${good ? '#d9d9d2' : '#2c2c33'}`; return l; });
+      const b = el('', col); b.style.cssText = `position:absolute;left:-30px;bottom:-30px;width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${good ? 'var(--acc)' : 'var(--bad)'}`;
+      const bi = icon(good ? 'check' : 'cross', b, 70, '#0b0b0c', 14);
+      return { col, h, p, q, r, ls, b, bi, txt, good };
+    });
+    s.cap = el('main', s.root); s.cap.style.cssText = 'font-size:84px;margin-top:40px'; s.cw = words(s.cap, 'الفرق *كبير* *جداً*');
+  },
+  tm: [{ in: .3, ty: 1.0, res: 2.6, bd: 5.2 }, { in: 7.6, ty: 8.6, res: 13.6, bd: 17.0 }],
+  upd(s, lt) {
+    s.cols.forEach((c, k) => {
+      const tm = T.compare.tm[k]; const m = spring(lt - tm.in, 170, 24); c.col.style.opacity = clamp(m * 2) * (k === 0 && lt > 7.4 ? lerp(1, .5, prog(lt, 7.4, 8)) : 1); c.col.style.transform = `translateY(${(1 - m) * 60}px)`;
+      c.q.textContent = typed(c.txt, lt, tm.ty, 1 / .06);
+      const rr = spring(lt - tm.res, 170, 24); c.r.style.opacity = clamp(rr * 2); c.ls.forEach((l, i) => l.style.transform = `scaleX(${prog(lt, tm.res + .2 + i * .18, tm.res + .8 + i * .18, eio)})`);
+      const b = spring(lt - tm.bd, 300, 22); c.b.style.transform = `scale(${b})`; draw(c.bi, prog(lt, tm.bd + .1, tm.bd + .5, eio));
+    });
+    animWords(s.cw, lt, 20);
+  },
+  cues(s) {
+    const c = [];
+    s.cols.forEach((col, k) => { const tm = T.compare.tm[k]; c.push([tm.in, 'whoosh', .4]); for (let i = 0; i < col.txt.length; i += 2) if (col.txt[i] !== ' ') c.push([tm.ty + i * .06, 'tick', .22]); c.push([tm.res, 'pop', .5]); c.push([tm.bd, k ? 'ding' : 'buzz', .6]); });
+    c.push([20, 'hit', .7]); return c;
+  }
+};
+
+T.morph = {
+  build(s) {
+    const box = el('', s.root); box.style.cssText = 'position:relative;display:grid;place-items:center;font-size:230px;font-weight:900';
+    s.A = el('', box); s.A.style.cssText = 'grid-area:1/1;position:relative'; s.aw = words(s.A, s.a);
+    s.st = el('', s.A); s.st.style.cssText = 'position:absolute;left:-3%;right:-3%;top:55%;height:20px;border-radius:10px;background:var(--bad);transform-origin:100% 50%';
+    s.B = el('', box); s.B.style.cssText = 'grid-area:1/1'; s.bw = words(s.B, s.b);
+  },
+  upd(s, lt) {
+    animWords(s.aw, lt, .1);
+    s.st.style.transform = `scaleX(${prog(lt, 1.3, 1.7, eio)})`;
+    const out = prog(lt, 2.4, 2.9, ei); s.A.style.opacity = 1 - out; s.A.style.transform = `translateY(${-out * 120}px)`;
+    animWords(s.bw, lt, 2.8, .1);
+  },
+  cues() { return [[.1, 'swish', .4], [1.3, 'scratch', .6], [2.8, 'hit', .9]]; }
+};
+
+T.endcard = {
+  build(s) {
+    s.lb = el('sub', s.root); s.lw = words(s.lb, 'اتفرج بعد كده');
+    s.c = el('card', s.root); s.c.style.cssText += ';width:1000px;height:560px;position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;border-color:var(--acc);border-width:3px';
+    const g = el('', s.c); g.style.cssText = 'position:absolute;inset:0;background:radial-gradient(circle at 70% 30%,rgba(205,242,79,.18),rgba(0,0,0,0) 60%)';
+    const n = el('', s.c); n.style.cssText = 'font-size:150px;font-weight:900;line-height:1.1;position:relative'; n.innerHTML = '<span class="acc">10</span> طلبات';
+    const pl = el('', s.c); pl.style.cssText = 'width:130px;height:130px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;position:relative'; s.pl = pl;
+    const p = document.createElementNS(SVGNS, 'svg'); p.setAttribute('viewBox', '0 0 120 120'); p.setAttribute('width', 70); p.setAttribute('height', 70); p.innerHTML = '<path d="M46 30 L92 60 L46 90 Z" fill="#0b0b0c"/>'; pl.appendChild(p);
+    s.tb = el('main', s.root); s.tb.style.fontSize = '76px'; s.tw = words(s.tb, 'هتوفرلك *ساعات* كل أسبوع');
+  },
+  upd(s, lt) {
+    animWords(s.lw, lt, .05);
+    const m = spring(lt - .6, 170, 24); s.c.style.opacity = clamp(m * 2); s.c.style.transform = `translateY(${(1 - m) * 90}px) scale(${.92 + .08 * m})`;
+    s.pl.style.transform = `scale(${1 + .05 * Math.sin(lt * 4)})`;
+    animWords(s.tw, lt, 1.4);
+  },
+  cues() { return [[.05, 'swish', .3], [.6, 'hit', .9], [1.4, 'swish', .3]]; }
+};
+
+// ---------- the film (times in seconds, follow the script) ----------
+sc(0, 5, 'hook');
+sc(5, 9.5, 'text', { lines: 'لا *بيفكر*…\nولا *بيفهم*.', size: 140 });
+sc(9.5, 16, 'icons3', { title: 'ومع كده…', items: [['pen', 'بيكتب'], ['brush', 'بيرسم'], ['code', 'بيبرمج']] });
+sc(16, 19.5, 'text', { lines: '*إزاي؟*', size: 300, hero: 1 });
+sc(19.5, 26, 'text', { lines: 'لو فهمت النقطة دي…\nهتفهم *الموضوع* *كله*' });
+sc(26, 30, 'text', { sub: 'الذكاء الاصطناعي', lines: '*بالبلدي*', size: 240, hero: 1 });
+sc(30, 39, 'headlines', { label: 'كلام بتسمعه كل يوم', a: 'الذكاء الاصطناعي هينهي العالم', b: 'دي موضة… وهتعدي' });
+sc(39, 43, 'text', { lines: 'الاتنين *غلط.*', size: 180, hero: 1 });
+sc(43, 50, 'text', { lines: 'والنتيجة؟ الناس…\nيا *خايفة*… يا *مش* *مهتمة*' });
+sc(50, 54, 'text', { lines: 'والاتنين *بيخسروا.*', size: 150 });
+sc(54, 60, 'text', { lines: 'فخلينا نشيل الكلام الكبير…\nونفهمه *بالبلدي.*' });
+sc(60, 65, 'chapter', { n: '01', title: 'بيشتغل إزاي أصلاً؟' });
+sc(65, 72, 'typing', { label: 'كمّل الجملة دي:', text: 'النهارده الجو…' });
+sc(72, 84, 'probs', { prompt: 'النهارده الجو', items: [['حر', 62], ['حلو', 23], ['بارد', 9]] });
+sc(84, 92, 'text', { lines: 'دماغك اختارت على طول…\nعشان سمعتها قبل كده *ألف* *مرة*' });
+sc(92, 97, 'text', { lines: 'الذكاء الاصطناعي\nبيعمل كده *بالظبط*' });
+sc(97, 110, 'funnel', { title: 'اتدرّب على كمية نصوص *ضخمة*' });
+sc(110, 118, 'text', { lines: 'واتعلم أي كلمة بتيجي *غالباً*\nبعد أي كلمة' });
+sc(118, 124, 'text', { lines: 'لما تسأله…\nمش بيدوّر على الإجابة *زيّنا*' });
+sc(124, 140, 'chain', { title: 'بيتوقّع الكلمة… ورا الكلمة', toks: ['الذكاء', 'الاصطناعي', 'بيتوقّع', 'الكلمة', 'اللي', 'بعدها', 'واحدة', 'واحدة'] });
+sc(140, 145, 'text', { lines: 'لحد ما الإجابة *تكمل*', size: 130 });
+sc(145, 150, 'text', { lines: 'والتوقع بقى دقيق لدرجة…\nإن النتيجة شكلها *فهم*' });
+sc(150, 158, 'text', { sub: 'بس هو في الحقيقة', lines: '*توقّع* *شاطر* *جداً*', size: 190, hero: 1 });
+sc(158, 165, 'text', { lines: 'افتكر الجملة دي…\nهنحتاجها *كمان* *شوية*' });
+sc(165, 170, 'chapter', { n: '02', title: 'بيعمل إيه… وبيغلط في إيه' });
+sc(170, 178, 'text', { lines: 'طالما بيتوقّع…\nهيبقى شاطر في أي حاجة ليها *شكل* *متكرر*' });
+sc(178, 196, 'checklist', { title: 'شاطر *جداً* في', mode: 'check', items: ['يكتب إيميل', 'يلخّص مقال طويل', 'يترجم', 'يشرح حاجة صعبة ببساطة', 'يساعدك في الكود'] });
+sc(196, 201, 'text', { lines: 'بس فيه *مشكلة* *كبيرة*', size: 150 });
+sc(201, 209, 'text', { lines: 'ساعات بيتوقّع غلط…\nوبنفس *الثقة* *بالظبط*' });
+sc(209, 219, 'citation');
+sc(219, 226, 'glitch', { word: 'الهلوسة', sub: 'لما يألّف حاجة ملهاش أصل… *وبثقة*' });
+sc(226, 236, 'text', { sub: 'القاعدة الذهبية', lines: 'استخدمه في *الشغل*…\nومتصدقهوش في المعلومات من غير *مراجعة*' });
+sc(236, 249, 'pair', { title: 'اعتبره…', a: ['spark', 'متدرّب شاطر جداً\nومتحمس جداً'], b: ['eye', 'بس لازم حد\n*يراجع* *وراه*'] });
+sc(249, 255, 'text', { lines: 'طب…\nهياخد *شغلي؟*', size: 150 });
+sc(255, 260, 'chapter', { n: '03', title: 'هل هياخد شغلك؟' });
+sc(260, 266, 'text', { lines: 'خليني أقولك الحقيقة…\nبدل التطمين *الكداب*' });
+sc(266, 272, 'text', { lines: 'أيوه…\nفيه مهام *هتختفي.*', size: 150, hero: 1 });
+sc(272, 286, 'checklist', { title: 'زي مثلاً', mode: 'strike', items: ['إدخال بيانات', 'ترجمة بسيطة', 'رد على أسئلة متكررة'] });
+sc(286, 294, 'text', { lines: 'أي حاجة بتتكرر وليها *قالب* *ثابت*…\nالآلة هتعملها أسرع وأرخص' });
+sc(294, 302, 'text', { lines: 'الآلة بتاخد *مهام*…\n~مش~ ~وظايف~', size: 150 });
+sc(302, 318, 'jobbar');
+sc(318, 326, 'text', { lines: 'الخطر الحقيقي…\nمش إن الذكاء الاصطناعي *ياخد* *مكانك*' });
+sc(326, 336, 'text', { sub: 'الخطر', lines: 'إن حد *بيعرف* *يستخدمه*\nياخد مكانك', size: 150, hero: 1 });
+sc(336, 352, 'text', { lines: 'زي زمان…\nاللي اتعلم الكمبيوتر سبق اللي رفضه\nنفس الحكاية… بس *أسرع*', size: 96 });
+sc(352, 360, 'text', { lines: 'طب… *أبدأ* *منين؟*', size: 160 });
+sc(360, 364, 'chapter', { n: '04', title: '3 حاجات تعملها من النهارده' });
+sc(364, 381, 'step', { n: '1', title: 'خليه *يشرحلك*', kind: 'chat', text: 'اشرحهالي كأني أول مرة أسمع عنها، وبمثال من حياتي' });
+sc(381, 397, 'step', { n: '2', title: 'أول نسخة عليه… والأخيرة *عليك*', kind: 'draft' });
+sc(397, 402, 'text', { sub: 'تلاتة… وده أهم واحد', lines: '*اديله* *تفاصيل*', size: 190, hero: 1 });
+sc(402, 435, 'compare', { a: 'اكتب إيميل', b: 'اكتب إيميل لمديري أطلب فيه أجازة يومين، بأسلوب محترم ومختصر' });
+sc(435, 440, 'text', { lines: 'فاكر أول جملة قلتهالك؟', size: 120 });
+sc(440, 447, 'morph', { a: 'مش ذكي.', b: '*توقّع* *شاطر.*' });
+sc(447, 453, 'text', { lines: 'وفي إيد واحد بيفكر…\n*أقوى* *أداة* نزلت من سنين' });
+sc(453, 460, 'text', { lines: 'السؤال مش هيعمل إيه فيك…\nإنت هتعمل *بيه* *إيه*' });
+sc(460, 480, 'endcard');
+
+const CHAPS = [[60, '01', 'بيشتغل إزاي'], [165, '02', 'بيعمل إيه وبيغلط في إيه'], [255, '03', 'هياخد شغلك؟'], [360, '04', '3 حاجات من النهارده'], [435, '', '']];
+// orb keyframes: per scene type
+const ORB = S.map(s => {
+  const R = rng(Math.round(s.t0 * 10));
+  if (s.type === 'funnel') return [s.t0, 960, 670, 1.4];
+  if (s.type === 'chapter') return [s.t0, 960, 470, 1.25];
+  if (s.hero) return [s.t0, 960, 540, 1.35];
+  return [s.t0, 660 + R() * 600, 380 + R() * 320, .8 + R() * .3];
+});
+
+// ---------- build + seek ----------
+const chapB = document.querySelector('#chap b'), chapS = document.querySelector('#chap span');
+const orb = document.getElementById('orb'), dots = document.getElementById('dots'), fade = document.getElementById('fade');
+const gc = document.getElementById('grain'), gx = gc.getContext('2d'), gimg = gx.createImageData(480, 270);
+function grain(t) {
+  const r = rng(Math.floor(t * 15) + 99), d = gimg.data;
+  for (let i = 0; i < d.length; i += 4) { const v = r() * 255; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  gx.putImageData(gimg, 0, 0);
+}
+function buildAll() {
+  S.forEach((s, i) => { s.root = el('sc', stage); s.root.style.zIndex = 10; T[s.type].build(s); s.root.style.display = 'none'; });
+  window.CUES = [];
+  S.forEach(s => T[s.type].cues(s).forEach(([lt, k, g]) => { if (lt < s.t1 - s.t0) CUES.push([+(s.t0 + lt).toFixed(3), k, g]); }));
+  CUES.sort((a, b) => a[0] - b[0]);
+}
+let ready = false;
+window.seek = (t) => {
+  // background
+  dots.style.transform = `translate(${(-t * 7) % 44}px,${(-t * 3.5) % 44}px)`;
+  grain(t);
+  // orb
+  let k = 0; while (k + 1 < ORB.length && ORB[k + 1][0] <= t) k++;
+  const cur = ORB[k], prev = ORB[Math.max(0, k - 1)], p = eio((t - cur[0]) / 1.4);
+  const ox = lerp(prev[1], cur[1], p), oy = lerp(prev[2], cur[2], p), os = lerp(prev[3], cur[3], p) * (1 + .04 * Math.sin(t * 1.3));
+  orb.style.transform = `translate(${ox}px,${oy}px) scale(${os})`;
+  // chapter tag
+  let ch = null; CHAPS.forEach(c => { if (t >= c[0] + 5) ch = c; });
+  const chOn = ch && ch[1] ? 1 : 0; chapB.textContent = ch ? ch[1] : ''; chapS.textContent = ch ? ch[2] : '';
+  const sinceCh = ch ? t - ch[0] - 5 : 0; document.getElementById('chap').style.opacity = chOn * clamp(sinceCh / .6);
+  // scenes
+  S.forEach(s => {
+    const lt = t - s.t0, d = s.t1 - s.t0;
+    if (lt < -0.001 || lt >= d) { if (s.root.style.display !== 'none') s.root.style.display = 'none'; return; }
+    s.root.style.display = 'flex';
+    T[s.type].upd(s, lt, d);
+    const isLast = s === S[S.length - 1];
+    const x = isLast ? 0 : prog(lt, d - .45, d, ei);
+    s.root.style.opacity = 1 - x;
+    s.root.style.transform = `translateY(${-x * 50}px) scale(${1 + .018 * lt / d})`;
+    s.root.style.filter = x > 0 ? `blur(${x * 8}px)` : 'none';
+  });
+  fade.style.opacity = prog(t, DUR - 1.2, DUR, x => clamp(x));
+};
+document.fonts.ready.then(() => Promise.all([400, 700, 900].map(w => document.fonts.load(`${w} 40px K`, 'الذكاء AI 01')))).then(() => {
+  buildAll(); seek(0); window.ready = true;
+});
+// preview: space = play/pause, arrows = +-1s, ?t=
+let playing = false, t0w = 0, tcur = +(new URLSearchParams(location.search).get('t') || 0);
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { playing = !playing; t0w = performance.now() / 1000 - tcur; if (playing) requestAnimationFrame(loop); }
+  if (e.code === 'ArrowLeft') { tcur = Math.max(0, tcur - 1); seek(tcur); }
+  if (e.code === 'ArrowRight') { tcur = Math.min(DUR, tcur + 1); seek(tcur); }
+});
+function loop() { if (!playing) return; tcur = performance.now() / 1000 - t0w; if (tcur > DUR) { playing = false; return; } seek(tcur); requestAnimationFrame(loop); }
+</script>
+</body>
+</html>
