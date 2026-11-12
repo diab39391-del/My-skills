@@ -1,8 +1,9 @@
 """Synthesized music bed + SFX placed on the film's cue list (out/cues.json). Writes out/mix_raw.wav."""
 import json, wave
-import numpy as np
+import numpy as np, os, subprocess
+E=os.environ.get
 
-SR, DUR = 44100, 480.0
+SR, DUR = 44100, float(E('DUR', '480'))
 N = int(SR * DUR)
 rng = np.random.default_rng(7)
 t_all = np.arange(N) / SR
@@ -42,7 +43,7 @@ for s in range(nseg):
     pad *= env * 0.05
     music[:, i0:i0 + n] += pad
     # bass plucks on beats 1 and 3 (from 30 s on)
-    if s * seg >= 30:
+    if s * seg >= float(E('BASS_FROM', '30')):
         for b in (0, 2, 4, 6):
             j0 = i0 + int(b * BEAT * SR); m = int(1.2 * SR)
             if j0 + m > N: continue
@@ -50,7 +51,7 @@ for s in range(nseg):
             bs = np.sin(2 * np.pi * mtof(ROOT[s % 4]) * tt) * np.exp(-tt * 3.5) * 0.11
             music[:, j0:j0 + m] += bs
     # soft arp 8ths (from 60 s on, chapters)
-    if s * seg >= 60:
+    if s * seg >= float(E('ARP_FROM', '60')):
         notes = [c[0] + 12, c[1] + 12, c[2] + 12, c[1] + 12]
         for q in range(16):
             j0 = i0 + int(q * BEAT / 2 * SR); m = int(.5 * SR)
@@ -60,7 +61,7 @@ for s in range(nseg):
             pan = .35 if q % 2 else -.35
             music[0, j0:j0 + m] += ar * (1 - pan); music[1, j0:j0 + m] += ar * (1 + pan)
     # hats (from 30 s)
-    if s * seg >= 30:
+    if s * seg >= float(E('BASS_FROM', '30')):
         for q in range(16):
             j0 = i0 + int((q + .5) * BEAT / 2 * SR) if False else i0 + int(q * BEAT / 2 * SR)
             m = int(.05 * SR)
@@ -111,16 +112,24 @@ def sfx(kind):
     raise ValueError(kind)
 
 fx = np.zeros((2, N), np.float32)
-cues = json.load(open('out/cues.json'))
+cues = json.load(open(E('CUES', 'out/cues.json')))
 for t, kind, g in cues:
-    s = sfx(kind) * g * 0.5
+    s = sfx(kind) * g * 0.5 * float(E('SFX_GAIN', '1'))
     i0 = int(t * SR); i1 = min(N, i0 + len(s))
     pan = 0.0 if kind in ('hit', 'stamp', 'rise') else float(rng.uniform(-.25, .25))
     fx[0, i0:i1] += s[:i1 - i0] * (1 - pan); fx[1, i0:i1] += s[:i1 - i0] * (1 + pan)
 
-mix = music + fx
+mix = music * float(E('MUSIC_GAIN', '1')) + fx
+if E('VO'):
+    raw = subprocess.run(['ffmpeg', '-nostdin', '-v', 'error', '-i', E('VO'), '-f', 's16le', '-ac', '1', '-ar', str(SR), '-'], capture_output=True).stdout
+    vo = np.frombuffer(raw, np.int16).astype(np.float32) / 32768
+    vo = vo / (np.abs(vo).max() + 1e-9) * 0.9
+    v = np.zeros(N, np.float32); v[:min(N, len(vo))] = vo[:N]
+    # duck music+sfx bed under the voice (smoothed envelope)
+    env = np.convolve(np.abs(v), np.ones(int(.25 * SR)) / int(.25 * SR), 'same'); env = np.clip(env / (env.max() + 1e-9) * 3, 0, 1)
+    mix = mix * (1 - 0.45 * env) * 0.55 + v
 mix /= max(1e-9, np.abs(mix).max()) / 0.9
 pcm = (mix.T * 32767).astype(np.int16)
-with wave.open('out/mix_raw.wav', 'wb') as w:
+with wave.open(E('OUT', 'out/mix_raw.wav'), 'wb') as w:
     w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
 print('cues', len(cues), 'ok')

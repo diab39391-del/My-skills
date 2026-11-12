@@ -14,3 +14,11 @@ Then loudnorm to -14 LUFS, concat parts and mux the audio. Preview in a browser:
 Fonts: Cairo (SIL Open Font License), from @fontsource/cairo.
 
 3D icons: Microsoft Fluent Emoji 3D (MIT license), from @lobehub/fluent-emoji-3d.
+
+## 1-minute version (`short.html`)
+Timed to an ElevenLabs Egyptian voiceover (not committed; put it at `short/vo.mp3`). Sentence starts in `vo_bounds.json` came from MFCC-DTW alignment against a reference TTS read of `vo_lines.txt`, snapped to pauses.
+```bash
+PAGE=short.html node render.js cues out/short_cues.json
+DUR=56 BASS_FROM=4 ARP_FROM=14 CUES=out/short_cues.json VO=short/vo.mp3 MUSIC_GAIN=0.6 SFX_GAIN=0.7 OUT=out/short_raw.wav python3 audio.py
+PAGE=short.html node render.js chunk 0 14 out/sp0.mp4   # ...14-28, 28-42, 42-56
+```

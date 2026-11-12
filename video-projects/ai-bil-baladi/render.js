@@ -2,7 +2,7 @@
 const { chromium } = require('playwright');
 const { spawn } = require('child_process');
 const fs = require('fs');
-const URL_ = 'http://127.0.0.1:8765/index.html';
+const URL_ = 'http://127.0.0.1:8765/' + (process.env.PAGE || 'index.html');
 const FPS = 30;
 
 async function open() {
