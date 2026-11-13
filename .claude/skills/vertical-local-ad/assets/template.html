@@ -95,29 +95,30 @@ function logoStatic(L) { L.o.style.strokeDashoffset = 0; L.i.style.strokeDashoff
 // ---------- scenes ----------
 // ================= BRAND: edit only this block for a new client =================
 const BRAND = {
-  query: 'أحسن حضانة قريبة مني',                       // what the viewer "searches"
-  suggestions: ['حضانة قريبة مني', 'حضانة بتعلّم القراءة صح', 'أحسن حضانة للأطفال'],
-  hook: 'بتدوّر على مكان\n*يأسّس* ابنك صح؟',            // *x* = accent 2, _x_ = accent 1, ^x^ = gold
-  name1: 'اسم المكان', name2: 'التعليمي',                // two-colour name (accent 1 / accent 2)
-  badge: 'الميزة الأساسية',                              // gold pill (method, specialty...)
-  slogan: 'شعار المكان هنا',
-  addrShort: 'ش 00 من الشارع الرئيسي',
-  addrFull: 'ش 00 جانبي من الشارع الرئيسي',
-  addrNote: 'أمام معلم 1 · ناحية معلم 2 ومعلم 3',
-  streetMain: 'الشارع الرئيسي', streetSide: 'ش 00',
-  landmarks: [['معلم 1', 700, 860], ['معلم 2', 150, 760], ['معلم 3', 640, 1050]],
-  method: { word: 'نور', tiles: ['أ', 'ب', 'ت', 'ث'], wordTiles: ['ن', 'و', 'ر'], line: 'ابنك يتعلّم الحروف\nويقرأ ^صح^ من أول يوم' },
-  servicesTitle: 'ابنك _هيتعلّم_…',
-  services: [['عربي', 'writing', ''], ['حساب', 'abacus', ''], ['ماث', 'numbers', 'Math'], ['إنجليزي', 'abc', 'English'], ['قرآن', 'openbook', ''], ['تفسير', 'bulb', '']],
-  team: 'باقة من *ألمع*\n_المدرسين_\nوالمتخصصين',
-  valuesTitle: 'إحنا مش بس بنعلّم…\nإحنا _بنأسّس_',
-  values: [['العلم', 'books', 'var(--navy)'], ['الأخلاق', 'heart', 'var(--mag)']],
-  valuesLine: 'جيلاً *متميزاً*\nبالعلم والأخلاق',
+  query: 'أحسن [الخدمة] قريبة مني',                     // what the viewer "searches"
+  suggestions: ['[الخدمة] قريبة مني', 'أحسن [الخدمة]', '[الخدمة] بأسعار مناسبة'],
+  hook: 'بتدوّر على\n*[الخدمة]* صح؟',                    // *x* = accent 2, _x_ = accent 1, ^x^ = gold
+  name1: '[اسم المكان]', name2: '[النشاط]',             // two-colour name (accent 1 / accent 2)
+  badge: '[الميزة الأساسية]',                            // gold pill
+  slogan: '[الشعار]',
+  addrShort: '[العنوان المختصر]',
+  addrFull: '[العنوان بالتفصيل]',
+  addrNote: '[أمام معلم 1 · ناحية معلم 2]',
+  streetMain: '[الشارع الرئيسي]', streetSide: '[الشارع الجانبي]',
+  landmarks: [['[معلم 1]', 700, 860], ['[معلم 2]', 150, 760], ['[معلم 3]', 640, 1050]],
+  highlight: { word: 'ميزة', tiles: ['1', '2', '3', '4'], line: '[جملة عن الميزة الأساسية]' },   // tiles pop, then the word builds from its own letters
+  servicesTitle: '[عندنا]…',
+  services: [['[خدمة 1]', 'star', ''], ['[خدمة 2]', 'sparkles', ''], ['[خدمة 3]', 'heart', ''], ['[خدمة 4]', 'target', ''], ['[خدمة 5]', 'bulb', ''], ['[خدمة 6]', 'medal', '']],
+  team: 'فريق من *أمهر*\n_المتخصصين_',
+  teamIcons: ['person', 'student', 'person'],
+  valuesTitle: '[إحنا مش بس…]\n[إحنا…]',
+  values: [['[قيمة 1]', 'medal', 'var(--navy)'], ['[قيمة 2]', 'heart', 'var(--mag)']],
+  valuesLine: '[جملة القيم]',
   placeTitle: 'مكاننا *قريب* منك',
-  manager: '',                                           // e.g. 'بإدارة: <b style="color:var(--navy)">الاسم</b>' or '' to hide
-  cta: 'سجّل دلوقتي',
-  phoneLabel: 'رقم التواصل والتسجيل',
-  phoneGroups: ['010', '00', '00', '0000'],              // light up one by one as the VO reads them
+  manager: '',                                           // e.g. 'بإدارة: <b style="color:var(--navy)">[الاسم]</b>' or '' to hide
+  cta: '[احجز دلوقتي]',
+  phoneLabel: 'رقم التواصل',
+  phoneGroups: ['010', '0000', '0000'],                  // light up one by one as the VO reads them
 };
 // =================================================================================
 const S = []; function sc(t0, t1, type, o = {}) { S.push(Object.assign({ t0, t1, type }, o)); }
@@ -207,15 +208,15 @@ T.result = {
 };
 
 const TILE = ['#f2b829', '#c2185b', '#1a6ad2', '#e2205a'];
-T.nour = {
+T.highlight = {
   build(s) {
     s.root.style.background = 'radial-gradient(ellipse at 50% 40%,#2c54a8 0%,#21418a 55%,#172f66 100%)';
     s.lab = el('abs center', s.root); css(s.lab, 'top:430px'); s.lp = el('pill', s.lab); css(s.lp, 'background:var(--gold);color:var(--ink);font-size:56px;padding:14px 44px'); s.lp.textContent = BRAND.badge;
-    s.tiles = BRAND.method.tiles.map((ch, i) => { const t = el('abs', s.root); css(t, `width:200px;height:200px;border-radius:44px;background:${TILE[i]};color:#fff;font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 0 rgba(0,0,0,.18);left:${790 - i * 230}px;top:840px;line-height:1`); t.textContent = ch; return t; });
-    s.nwr = BRAND.method.wordTiles.map((ch, i) => { const t = el('abs', s.root); css(t, `width:200px;height:200px;border-radius:44px;background:#fff;color:var(--navy);font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 0 rgba(0,0,0,.18);top:840px;line-height:1`); t.textContent = ch; t._x0 = 680 - i * 280; return t; });
-    s.word = el('abs center', s.root); css(s.word, 'top:780px;font-size:300px;font-weight:900;color:var(--gold);line-height:1.2;text-shadow:0 0 80px rgba(242,184,41,.45)'); s.word.textContent = BRAND.method.word;
-    s.cap = el('abs center', s.root); css(s.cap, 'top:1250px;font-size:76px;font-weight:900;color:#fff;line-height:1.35'); s.cw = words(s.cap, BRAND.method.line);
-    s.ics = [['openbook', 110, 1530, 200], ['pencil', 770, 1560, 170], ['crayon', 110, 560, 150], ['sparkles', 830, 580, 140]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
+    s.tiles = BRAND.highlight.tiles.map((ch, i) => { const t = el('abs', s.root); css(t, `width:200px;height:200px;border-radius:44px;background:${TILE[i]};color:#fff;font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 0 rgba(0,0,0,.18);left:${790 - i * 230}px;top:840px;line-height:1`); t.textContent = ch; return t; });
+    s.nwr = [...BRAND.highlight.word].map((ch, i, arr) => { const t = el('abs', s.root); css(t, `width:200px;height:200px;border-radius:44px;background:#fff;color:var(--navy);font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 0 rgba(0,0,0,.18);top:840px;line-height:1`); t.textContent = ch; t._x0 = 440 + ((arr.length - 1) / 2 - i) * Math.min(280, 900 / Math.max(1, arr.length - 1 || 1)); return t; });
+    s.word = el('abs center', s.root); css(s.word, 'top:780px;font-size:300px;font-weight:900;color:var(--gold);line-height:1.2;text-shadow:0 0 80px rgba(242,184,41,.45)'); s.word.textContent = BRAND.highlight.word;
+    s.cap = el('abs center', s.root); css(s.cap, 'top:1250px;font-size:76px;font-weight:900;color:#fff;line-height:1.35'); s.cw = words(s.cap, BRAND.highlight.line);
+    s.ics = [['star', 110, 1530, 180], ['target', 770, 1560, 170], ['bulb', 110, 560, 150], ['sparkles', 830, 580, 140]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
   },
   upd(s, lt) {
     const lp = spring(lt - .45, 240, 18); s.lab.style.opacity = clamp(lp * 2); s.lab.style.transform = `scale(${lp})`;
@@ -297,7 +298,7 @@ T.end = {
     s.phl = el('abs center', s.root); css(s.phl, 'top:1405px;font-size:40px;font-weight:700;color:var(--mute)'); s.phl.textContent = BRAND.phoneLabel;
     s.ph = el('abs center', s.root); css(s.ph, 'top:1470px'); s.pb = el('pill', s.ph); css(s.pb, 'background:var(--navy);color:#fff;font-size:76px;padding:18px 54px;letter-spacing:2px;box-shadow:0 18px 40px rgba(33,65,138,.3)');
     s.pi = img3('phone', s.pb, 84); const pn = el('', s.pb, 'span'); pn.style.direction = 'ltr'; s.dg = BRAND.phoneGroups.map(g => { const sp = el('', pn, 'span'); sp.textContent = g; sp.style.display = 'inline-block'; return sp; });
-    s.ics = [['star', 140, 260, 120], ['balloon', 830, 220, 150], ['backpack', 110, 1660, 150], ['crayon', 840, 1680, 130]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
+    s.ics = [['star', 140, 260, 120], ['sparkles', 830, 220, 140], ['heart', 110, 1660, 130], ['medal', 840, 1680, 130]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
   },
   upd(s, lt) {
     drift(s.bl, lt + 20);
@@ -322,7 +323,7 @@ const SUBJ = BRAND.services;
 const SUBC = ['var(--navy)', 'var(--blue)', 'var(--mag)', 'var(--red)', 'var(--navy)', 'var(--mag)', 'var(--blue)', 'var(--red)'];
 // card i pops on the VO word that names it: set from words.json (seconds from the scene start)
 const SUBT = [1.2, 2.24, 3.08, 3.7, 4.56, 5.94];
-T.subjects = {
+T.services = {
   build(s) {
     s.root.style.background = 'var(--cream)'; s.bl = blobs(s.root, ['#1a6ad2', '#f2b829', '#c2185b']);
     s.t = el('abs center', s.root); css(s.t, 'top:280px;font-size:88px;font-weight:900;line-height:1.3'); s.tw = words(s.t, BRAND.servicesTitle);
@@ -345,11 +346,11 @@ T.subjects = {
 };
 
 
-T.teachers = {
+T.team = {
   build(s) {
     s.root.style.background = 'radial-gradient(ellipse at 50% 35%,#fff7e3 0%,var(--cream) 60%)'; s.bl = blobs(s.root, ['#f2b829', '#c2185b']);
-    s.ics = [['tw', 150, 520, 250], ['teacher', 415, 450, 270], ['tm', 690, 520, 250]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
-    s.qb = img3('openbook', s.root, 170); css(s.qb, 'position:absolute;left:455px;top:800px');
+    s.ics = [[150, 520, 250], [415, 450, 270], [690, 520, 250]].map(([x, y, z], k) => { const n = BRAND.teamIcons[k]; const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
+    s.qb = img3('medal', s.root, 170); css(s.qb, 'position:absolute;left:455px;top:800px');
     s.sp = img3('sparkles', s.root, 110); css(s.sp, 'position:absolute;left:640px;top:780px');
     s.t = el('abs center', s.root); css(s.t, 'top:1050px;font-size:86px;font-weight:900;line-height:1.35'); s.tw = words(s.t, BRAND.team);
   },
@@ -366,9 +367,9 @@ T.teachers = {
 // ---------- film (estimated VO timing; resync once the voiceover arrives) ----------
 sc(0, 4.4, 'search');
 sc(4.4, 6.6, 'result');
-sc(6.6, 12.44, 'nour', { reveal: 'flood' });
-sc(12.44, 21.3, 'subjects');
-sc(21.3, 25.94, 'teachers');
+sc(6.6, 12.44, 'highlight', { reveal: 'flood' });
+sc(12.44, 21.3, 'services');
+sc(21.3, 25.94, 'team');
 sc(25.94, 32.04, 'values');
 sc(32.04, 38.16, 'address');
 sc(38.16, 53, 'end');
