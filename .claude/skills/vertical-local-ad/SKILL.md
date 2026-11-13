@@ -14,17 +14,18 @@ description: >-
 # Vertical local-business ad (Arabic, 9:16)
 
 A working template, not a blank page. `assets/template.html` is a full film engine
-(pure `window.seek(t)`, RTL Arabic, Cairo font, 3D icons) built and shipped for a real
-nursery ad. A new ad = edit the `BRAND` block + the timeline + the logo, then render.
+(pure `window.seek(t)`, RTL Arabic, Cairo font, 3D icons) with neutral `[placeholders]`.
+A new ad = fill the `BRAND` block + the timeline + the logo, then render. Never ship a
+frame that still shows a `[placeholder]`.
 
 ## The story (keep the chain, it is what makes it work)
 | Scene (`type`) | What happens | Typical length |
 |---|---|---|
 | `search` | Hook question, a search bar types the query on an Arabic keyboard, tap "بحث" | 4-6 s |
 | `result` | Search bar moves up, the business card rises (logo, two-colour name, gold badge, slogan, address, call/directions/save), tap on the logo, a navy circle floods out of it | 2-4 s |
-| `nour` | "Inside" on the brand colour: letter tiles, then a glowing key word, then one line (rename freely; it is the method/specialty scene) | 5-6 s |
-| `subjects` | Grid of service cards with 3D icons, each popping on the word that names it | 6-9 s |
-| `teachers` | Team line with 3D people | 4-5 s |
+| `highlight` | "Inside" on the brand colour: 4 tiles pop, then `BRAND.highlight.word` builds from its own letters and glows, then one line (the business's main strength) | 5-6 s |
+| `services` | Grid of service cards with 3D icons (up to 8), each popping on the word that names it | 6-9 s |
+| `team` | Team line with 3 people icons (`BRAND.teamIcons`) | 4-5 s |
 | `values` | Two big value cards joined by "+", then a line | 5-6 s |
 | `address` | Schematic map draws, pin drops, landmarks pop, address card (labelled "خريطة توضيحية") | 5-6 s |
 | `end` | Logo draws itself, name, badge, slogan, manager, CTA button, phone number lighting up group by group | 8-15 s |
@@ -32,13 +33,13 @@ nursery ad. A new ad = edit the `BRAND` block + the timeline + the logo, then re
 Drop or reorder scenes in the `sc(...)` list at the bottom; every scene is self-contained.
 
 ## Workflow
-1. **Brief** (ask only what is missing): business name (two parts for the two colours), logo image, colours, the gold badge text (method or specialty), slogan, services, team line, address + 2-3 landmarks, manager name (optional), phone, CTA. Never invent ratings, prices, years, numbers of students or awards: no facts, no claim.
+1. **Brief** (ask only what is missing): business name (two parts for the two colours), logo image, colours, the gold badge text (main strength), the highlight word, slogan, services, team line, address + 2-3 landmarks, manager name (optional), phone, CTA. Never invent ratings, prices, years, numbers of students or awards: no facts, no claim.
 2. **Script + VO text**: use the `egyptian-arabic-copy` skill. The user usually records the voice in ElevenLabs and sends it back.
 3. **Copy the template** into a work folder: `assets/template.html` (rename), `assets/render.js`, `assets/audio.py`, `assets/fonts/`, `assets/icons/`.
-4. **Edit `BRAND`** at the top of the HTML. Accent syntax inside text: `_x_` accent 1 (navy), `*x*` accent 2 (magenta), `^x^` gold.
+4. **Fill `BRAND`** at the top of the HTML (replace every `[...]`; pick service icons from `assets/icons/`). Accent syntax inside text: `_x_` accent 1 (navy), `*x*` accent 2 (magenta), `^x^` gold.
 5. **Colours**: change the CSS tokens in `:root` (`--navy --mag --gold --blue --red --cream`). Sample them from the logo: `ffmpeg -i logo.png -f rawvideo -pix_fmt rgb24 -` then count saturated pixels (see "Colour sampling" below).
 6. **Logo**: `logo()` holds a placeholder mark. If the client logo is small or a screenshot, redraw it as SVG inside `logo()` keeping the class names `lg-o lg-i lg-k1 lg-k2 lg-st lg-bk` (the end card animates them: rings draw, book rises, figures pop, star spins). If a high-res PNG exists, put `<image href="brand/logo.png" x="20" y="20" width="160" height="160"/>` inside the circle instead. Tell the user when the logo is a redraw and ask for the original file.
-7. **Sync to the voice**: use the `voiceover-sync` skill to get `words.json`. Then set every `sc(t0, t1, ...)` boundary to sentence starts, `SUBT` to the word starts of each service (seconds from the scene start, minus ~0.08), `DG` in the end scene to when each phone group is spoken, and the per-line `la` arrays (teachers, values) to their words. Set `DUR` = VO length + 1-1.5 s hold.
+7. **Sync to the voice**: use the `voiceover-sync` skill to get `words.json`. Then set every `sc(t0, t1, ...)` boundary to sentence starts, `SUBT` (one entry per service) to the word starts of each service (seconds from the scene start, minus ~0.08), `DG` in the end scene to when each phone group is spoken, and the per-line `la` arrays (team, values) to their words. Set `DUR` = VO length + 1-1.5 s hold.
 8. **Check stills before rendering** (vertical contact sheet): `VW=1080 VH=1920 PAGE=ad.html node render.js probe out/s.png 2 6 12 20 30 45`. Read the PNG. Fix overlaps, empty halves, text at the edges (keep text inside y 200-1750).
 9. **Render** in 4 parallel chunks, then mux (below). Verify: frame count = DUR x 30, loudness -14 LUFS.
 
