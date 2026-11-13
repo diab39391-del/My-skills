@@ -18,8 +18,8 @@ Every video has a **spoken** text and an **on-screen** text. Write both.
 |---|---|---|
 | Register | Real Egyptian speech: بتدوّر، دلوقتي، قدّام، عشان، إزاي، هيتعلّم | Short, readable, can lean slightly formal: عصائر، أمام، ناحية |
 | Length | Full sentence | The 2-6 words that carry the sentence |
-| Numbers | Written as words: "ميّة سبعة وعشرين", phone digit by digit "صفر واحد اتنين…" | Digits: 127, 01208070248 |
-| Names | As said ("ميس منى") | As written (منى الذهبي) |
+| Numbers | Written as words: "ميّة سبعة وعشرين", phone digit by digit "صفر واحد اتنين…" | Digits: 127, 010 1234 5678 |
+| Names | As said ("ميس سارة") | As written (سارة أحمد) |
 
 ## Rules for natural Egyptian
 - Use spoken forms, not فصحى dressed up: "عاوز" not "أريد", "بيعمل" not "يقوم بـ", "مش" not "ليس", "كده" not "هكذا", "دلوقتي" not "الآن".

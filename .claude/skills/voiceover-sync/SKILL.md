@@ -33,7 +33,7 @@ python3 scripts/transcribe.py vo.wav words.json --prompt "brand name, product wo
 - Model `mobiuslabsgmbh/faster-whisper-large-v3-turbo`, int8 on CPU: ~90 s to load the first time, ~20 s for a 1-minute VO. Arabic (including Egyptian) comes out clean.
 - The `--prompt` with the brand and names fixes spelling of proper nouns.
 - **Network**: the model download needs these hosts allowed in the cloud environment: `huggingface.co`, `us.aws.cdn.hf.co`, `cdn.hf.co`, `cdn-lfs.hf.co`, `cdn-lfs-us-1.hf.co`, `cas-bridge.xethub.hf.co`. Set `HF_HUB_DISABLE_XET=1` and `REQUESTS_CA_BUNDLE=SSL_CERT_FILE=/root/.ccr/ca-bundle.crt` behind the agent proxy. Once cached, `HF_HUB_OFFLINE=1`.
-- Whisper writes Egyptian pronunciation (e.g. "مونة الدهبي" for منى الذهبي, "عصاير" for عصائر, "ومحفظين"): put the correct written form on screen, keep the timing.
+- Whisper writes Egyptian pronunciation (e.g. "مونة" for منى, "دهبي" for ذهبي, "عصاير" for عصائر, "ومحفظين"): put the correct written form on screen, keep the timing.
 
 ## 3. Diff the voice against the script and the screen
 Read the transcript line by line next to the scene list:
