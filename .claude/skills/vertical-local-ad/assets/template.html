@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Vertical local ad</title>
+<style>
+@font-face{font-family:K;src:url(fonts/la-400.woff2);font-weight:400;unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF,U+2212}
+@font-face{font-family:K;src:url(fonts/la-700.woff2);font-weight:700;unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF,U+2212}
+@font-face{font-family:K;src:url(fonts/la-900.woff2);font-weight:900;unicode-range:U+0000-00FF,U+2000-206F,U+2190-21FF,U+2212}
+@font-face{font-family:K;src:url(fonts/ar-400.woff2);font-weight:400;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
+@font-face{font-family:K;src:url(fonts/ar-700.woff2);font-weight:700;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
+@font-face{font-family:K;src:url(fonts/ar-900.woff2);font-weight:900;unicode-range:U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF,U+200C-200F}
+:root{--navy:#21418a;--mag:#c2185b;--gold:#f2b829;--blue:#1a6ad2;--red:#e2205a;--cream:#fbf6ec;--ink:#1b2340;--mute:#7a8099}
+html,body{margin:0;overflow:hidden;background:var(--cream)}
+body{font-family:K,sans-serif;color:var(--ink);width:1080px;height:1920px}
+#stage{position:absolute;inset:0;overflow:hidden}
+.sc{position:absolute;inset:0;overflow:hidden}
+.abs{position:absolute}
+.line{width:max-content;margin:0 auto;white-space:nowrap;line-height:1.35}
+.w{display:inline-block;overflow:hidden;padding:.14em .02em .26em;margin:-.14em .1em -.26em;vertical-align:top}
+.wi{display:inline-block;transform-origin:50% 100%}
+.i3{display:block;filter:drop-shadow(0 22px 22px rgba(20,30,60,.28))}
+.blob{position:absolute;border-radius:50%;filter:blur(60px)}
+.card{background:#fff;border-radius:44px;box-shadow:0 30px 80px rgba(33,65,138,.16),0 4px 14px rgba(33,65,138,.08)}
+.pill{display:inline-flex;align-items:center;gap:14px;border-radius:999px;font-weight:900}
+.key{width:76px;height:96px;border-radius:16px;background:#fff;box-shadow:0 3px 0 rgba(33,65,138,.18);display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;color:var(--ink)}
+.center{left:0;right:0;text-align:center}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+const FPS = 30, DUR = 53, W = 1080, H = 1920;
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const eo = x => { x = clamp(x); return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); };
+const ei = x => { x = clamp(x); return x * x * x; };
+const eio = x => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const prog = (t, a, b, e = eo) => e((t - a) / (b - a));
+function spring(t, k = 200, d = 22) { if (t <= 0) return 0; const w0 = Math.sqrt(k), z = d / (2 * w0); if (z >= 1) return 1 - Math.exp(-w0 * t) * (1 + w0 * t); const wd = w0 * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w0 * t) * (Math.cos(wd * t) + z * w0 / wd * Math.sin(wd * t)); }
+const stage = document.getElementById('stage');
+function el(cls, parent, tag = 'div') { const e = document.createElement(tag); if (cls) e.className = cls; if (parent) parent.appendChild(e); return e; }
+function css(e, s) { e.style.cssText += ';' + s; return e; }
+function words(parent, text) {
+  const out = [];
+  text.split('\n').forEach((line, li) => {
+    const L = el('line', parent);
+    line.trim().split(/\s+/).forEach(w => {
+      let c = 'wi', m, col = null;
+      if ((m = w.match(/^\*(.+)\*(.*)$/))) { col = 'var(--mag)'; w = m[1] + m[2]; }
+      else if ((m = w.match(/^\^(.+)\^(.*)$/))) { col = 'var(--gold)'; w = m[1] + m[2]; }
+      else if ((m = w.match(/^_(.+)_(.*)$/))) { col = 'var(--navy)'; w = m[1] + m[2]; }
+      const o = el('w', L, 'span'); const i = el(c, o, 'span'); i.textContent = w; if (col) i.style.color = col; i._line = li; out.push(i);
+    });
+  });
+  return out;
+}
+function animWords(ws, lt, t0, st = .08, d = .7) { ws.forEach((w, i) => { const p = eo((lt - t0 - i * st) / d); w.style.transform = `translateY(${(1 - p) * 118}%) rotate(${(1 - p) * -4}deg)`; }); }
+const IMGS = [];
+function img3(name, parent, size) { const i = el('i3', parent, 'img'); i.src = 'icons/' + name + '.webp'; i.width = size; i.height = size; IMGS.push(i); return i; }
+function float3(i, lt, t0, seed = 0, amp = 1) { const m = spring(lt - t0, 220, 17); i.style.opacity = clamp(m * 3); i.style.transform = `translateY(${(1 - m) * 80 + Math.sin(lt * 1.8 + seed) * 12 * amp}px) rotate(${Math.sin(lt * 1.3 + seed) * 6 * amp}deg) scale(${.3 + .7 * m})`; }
+function pop(e, lt, t0, k = 260, d = 20, extra = '') { const m = spring(lt - t0, k, d); e.style.opacity = clamp(m * 3); e.style.transform = `scale(${m}) ${extra}`; return m; }
+function rise(e, lt, t0, dist = 60) { const m = spring(lt - t0, 170, 24); e.style.opacity = clamp(m * 2); e.style.transform = `translateY(${(1 - m) * dist}px)`; return m; }
+function blobs(root, cols) {
+  return cols.map((c, i) => { const b = el('blob', root); css(b, `width:${520 + i * 80}px;height:${520 + i * 80}px;background:${c};opacity:.32`); b._i = i; return b; });
+}
+function drift(bs, t) { bs.forEach(b => { const i = b._i; b.style.left = (lerp(-180, 760, (i * .37) % 1) + Math.sin(t * .35 + i * 2) * 70) + 'px'; b.style.top = (lerp(-120, 1500, (i * .61 + .1) % 1) + Math.cos(t * .3 + i) * 90) + 'px'; }); }
+
+// ---------- logo (vector rebuild of the academy mark) ----------
+function logo(parent, size) {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 200 200'); s.setAttribute('width', size); s.setAttribute('height', size);
+  // PLACEHOLDER MARK: redraw the client's logo here as vector (keep the class names so logoAnim works),
+  // or use <image href="brand/logo.png" .../> inside the circle for a high-res PNG.
+  s.innerHTML = `
+  <circle class="lg-bg" cx="100" cy="100" r="91" fill="#fff"/>
+  <circle class="lg-o" cx="100" cy="100" r="91" fill="none" stroke="#f2b829" stroke-width="9" pathLength="1" stroke-dasharray="1"/>
+  <circle class="lg-i" cx="100" cy="100" r="80" fill="none" stroke="#21418a" stroke-width="6" pathLength="1" stroke-dasharray="1"/>
+  <g class="lg-k1"><circle cx="82" cy="88" r="16" fill="#1a6ad2"/></g>
+  <g class="lg-k2"><circle cx="118" cy="88" r="16" fill="#c2185b"/></g>
+  <path class="lg-st" d="M100 34 L104 45 L116 45 L106.5 52 L110 63 L100 56.5 L90 63 L93.5 52 L84 45 L96 45 Z" fill="#f2b829"/>
+  <g class="lg-bk"><path d="M52 124 Q100 108 148 124 L148 136 Q100 120 52 136 Z" fill="#21418a"/></g>`;
+  parent.appendChild(s);
+  const q = c => s.querySelector(c);
+  return { s, o: q('.lg-o'), i: q('.lg-i'), k1: q('.lg-k1'), k2: q('.lg-k2'), st: q('.lg-st'), bk: q('.lg-bk') };
+}
+function logoAnim(L, lt, t0) {
+  L.o.style.strokeDashoffset = 1 - prog(lt, t0, t0 + .9, eio);
+  L.i.style.strokeDashoffset = 1 - prog(lt, t0 + .15, t0 + 1.0, eio);
+  const b = spring(lt - t0 - .35, 200, 22); L.bk.style.transform = `translateY(${(1 - b) * 30}px)`; L.bk.style.opacity = clamp(b * 2);
+  [L.k1, L.k2].forEach((k, j) => { const m = spring(lt - t0 - .6 - j * .15, 260, 16); k.style.transformOrigin = '100px 120px'; k.style.transformBox = 'view-box'; k.style.transform = `scale(${m}) translateY(${Math.sin(lt * 3 + j) * 1.5}px)`; });
+  const sm = spring(lt - t0 - 1.0, 240, 14); L.st.style.transformOrigin = '100px 49px'; L.st.style.transform = `scale(${sm}) rotate(${(1 - sm) * -180 + Math.sin(lt * 2) * 6}deg)`;
+}
+function logoStatic(L) { L.o.style.strokeDashoffset = 0; L.i.style.strokeDashoffset = 0; }
+
+// ---------- scenes ----------
+// ================= BRAND: edit only this block for a new client =================
+const BRAND = {
+  query: 'أحسن حضانة قريبة مني',                       // what the viewer "searches"
+  suggestions: ['حضانة قريبة مني', 'حضانة بتعلّم القراءة صح', 'أحسن حضانة للأطفال'],
+  hook: 'بتدوّر على مكان\n*يأسّس* ابنك صح؟',            // *x* = accent 2, _x_ = accent 1, ^x^ = gold
+  name1: 'اسم المكان', name2: 'التعليمي',                // two-colour name (accent 1 / accent 2)
+  badge: 'الميزة الأساسية',                              // gold pill (method, specialty...)
+  slogan: 'شعار المكان هنا',
+  addrShort: 'ش 00 من الشارع الرئيسي',
+  addrFull: 'ش 00 جانبي من الشارع الرئيسي',
+  addrNote: 'أمام معلم 1 · ناحية معلم 2 ومعلم 3',
+  streetMain: 'الشارع الرئيسي', streetSide: 'ش 00',
+  landmarks: [['معلم 1', 700, 860], ['معلم 2', 150, 760], ['معلم 3', 640, 1050]],
+  method: { word: 'نور', tiles: ['أ', 'ب', 'ت', 'ث'], wordTiles: ['ن', 'و', 'ر'], line: 'ابنك يتعلّم الحروف\nويقرأ ^صح^ من أول يوم' },
+  servicesTitle: 'ابنك _هيتعلّم_…',
+  services: [['عربي', 'writing', ''], ['حساب', 'abacus', ''], ['ماث', 'numbers', 'Math'], ['إنجليزي', 'abc', 'English'], ['قرآن', 'openbook', ''], ['تفسير', 'bulb', '']],
+  team: 'باقة من *ألمع*\n_المدرسين_\nوالمتخصصين',
+  valuesTitle: 'إحنا مش بس بنعلّم…\nإحنا _بنأسّس_',
+  values: [['العلم', 'books', 'var(--navy)'], ['الأخلاق', 'heart', 'var(--mag)']],
+  valuesLine: 'جيلاً *متميزاً*\nبالعلم والأخلاق',
+  placeTitle: 'مكاننا *قريب* منك',
+  manager: '',                                           // e.g. 'بإدارة: <b style="color:var(--navy)">الاسم</b>' or '' to hide
+  cta: 'سجّل دلوقتي',
+  phoneLabel: 'رقم التواصل والتسجيل',
+  phoneGroups: ['010', '00', '00', '0000'],              // light up one by one as the VO reads them
+};
+// =================================================================================
+const S = []; function sc(t0, t1, type, o = {}) { S.push(Object.assign({ t0, t1, type }, o)); }
+const T = {};
+const QUERY = BRAND.query;
+const KB = ['ض ص ث ق ف غ ع ه خ ح ج', 'ش س ي ب ل ا ت ن م ك ط', 'ئ ء ؤ ر ى ة و ز ظ د'];
+const TY0 = .6, TYS = .12; // typing start, sec per char
+const BAR_Y1 = 560, BAR_Y2 = 210;
+
+T.search = {
+  build(s) {
+    s.root.style.background = 'var(--cream)'; s.bl = blobs(s.root, ['#f2b829', '#c2185b', '#1a6ad2']);
+    s.hook = el('abs center', s.root); css(s.hook, 'top:250px;font-size:84px;font-weight:900;line-height:1.3'); s.hw = words(s.hook, BRAND.hook);
+    s.bar = el('card abs', s.root); css(s.bar, 'left:80px;width:920px;height:150px;display:flex;align-items:center;gap:26px;padding:0 44px;box-sizing:border-box;border-radius:75px;font-size:50px;font-weight:700');
+    const mg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); mg.setAttribute('viewBox', '0 0 40 40'); mg.setAttribute('width', 58); mg.setAttribute('height', 58); mg.innerHTML = '<circle cx="17" cy="17" r="11" stroke="#21418a" stroke-width="4.5" fill="none"/><path d="M25 25 L35 35" stroke="#21418a" stroke-width="4.5" stroke-linecap="round"/>'; s.bar.appendChild(mg);
+    s.q = el('', s.bar, 'span'); s.cr = el('', s.bar, 'span'); css(s.cr, 'width:5px;height:60px;background:var(--mag);border-radius:3px;margin-right:-20px');
+    s.sug = el('card abs', s.root); css(s.sug, 'left:80px;width:920px;padding:18px 44px;box-sizing:border-box;top:740px;font-size:40px;color:var(--mute);font-weight:700');
+    s.sl = BRAND.suggestions.map(t => { const r = el('', s.sug); css(r, 'padding:16px 0;border-bottom:2px solid #eef0f6'); r.textContent = t; return r; });
+    s.sl[s.sl.length - 1].style.borderBottom = 'none';
+    s.kb = el('abs', s.root); css(s.kb, 'left:0;right:0;top:1180px;padding:30px 20px 60px;background:#e9edf6;border-radius:40px 40px 0 0;display:flex;flex-direction:column;gap:18px;align-items:center;height:620px;box-sizing:border-box');
+    s.keys = {};
+    KB.forEach(row => { const r = el('', s.kb); css(r, 'display:flex;gap:10px;direction:rtl'); row.split(' ').forEach(ch => { const k = el('key', r); k.textContent = ch; s.keys[ch] = k; }); });
+    const lr = el('', s.kb); css(lr, 'display:flex;gap:12px;align-items:center');
+    s.space = el('key', lr); css(s.space, 'width:520px;font-size:34px;color:var(--mute)'); s.space.textContent = 'مسافة';
+    s.go = el('key', lr); css(s.go, 'width:220px;background:var(--navy);color:#fff;font-size:38px'); s.go.textContent = 'بحث';
+    s.end = TY0 + QUERY.length * TYS; // ~4.1
+  },
+  keyFor(ch) { if ('أإآ'.includes(ch)) return 'ا'; return ch; },
+  upd(s, lt) {
+    drift(s.bl, lt);
+    animWords(s.hw, lt, .05, .1);
+    const hookOut = prog(lt, 3.0, 3.4, ei); s.hook.style.opacity = 1 - hookOut;
+    // bar enters, then rises to the top for the results
+    const be = spring(lt - .15, 170, 24), up = prog(lt, 3.35, 4.2, eio);
+    s.bar.style.top = lerp(BAR_Y1, BAR_Y2, up) + 'px'; s.bar.style.opacity = clamp(be * 2); s.bar.style.transform = `scale(${.9 + .1 * be})`;
+    s.q.textContent = QUERY.slice(0, Math.floor(clamp((lt - TY0) / TYS, 0, QUERY.length)));
+    s.cr.style.opacity = (lt < s.end + .2 || Math.floor(lt * 4.8) % 2 === 0) ? 1 : 0;
+    const sg = spring(lt - 1.3, 170, 24) * (1 - prog(lt, 3.0, 3.4, ei)); s.sug.style.opacity = clamp(sg * 2); s.sug.style.transform = `translateY(${(1 - sg) * 40}px)`;
+    s.sl.forEach((r, i) => r.style.opacity = prog(lt, 1.3 + i * .35, 1.6 + i * .35));
+    const kbin = spring(lt - .3, 170, 26), kbout = prog(lt, 3.1, 3.6, ei); s.kb.style.transform = `translateY(${(1 - kbin) * 700 + kbout * 700}px)`;
+    Object.values(s.keys).forEach(k => { k.style.background = '#fff'; k.style.color = 'var(--ink)'; k.style.transform = 'none'; });
+    const ci = Math.floor((lt - TY0) / TYS);
+    if (ci >= 0 && ci < QUERY.length && (lt - TY0) % TYS < .11) {
+      const ch = QUERY[ci]; const k = ch === ' ' ? s.space : s.keys[T.search.keyFor(ch)];
+      if (k) { k.style.background = 'var(--navy)'; k.style.color = '#fff'; k.style.transform = 'scale(.92)'; }
+    }
+    const gp = lt > 2.85 && lt < 3.1; s.go.style.transform = gp ? 'scale(.9)' : 'none'; s.go.style.background = gp ? 'var(--mag)' : 'var(--navy)';
+  },
+  cues(s) { const c = [[.15, 'swish', .3]]; for (let i = 0; i < QUERY.length; i++) c.push([TY0 + i * TYS, 'tick', .4]); c.push([2.85, 'pop', .6], [3.35, 'whoosh', .4]); return c; }
+};
+
+T.result = {
+  build(s) {
+    s.root.style.background = 'var(--cream)'; s.bl = blobs(s.root, ['#f2b829', '#c2185b', '#1a6ad2']);
+    // same search bar, already at the top (continuity)
+    const bar = el('card abs', s.root); css(bar, `left:80px;width:920px;height:150px;top:${BAR_Y2}px;display:flex;align-items:center;gap:26px;padding:0 44px;box-sizing:border-box;border-radius:75px;font-size:50px;font-weight:700`);
+    bar.innerHTML = '<svg viewBox="0 0 40 40" width="58" height="58"><circle cx="17" cy="17" r="11" stroke="#21418a" stroke-width="4.5" fill="none"/><path d="M25 25 L35 35" stroke="#21418a" stroke-width="4.5" stroke-linecap="round"/></svg><span>' + QUERY + '</span>';
+    s.c = el('card abs', s.root); css(s.c, 'left:60px;width:960px;top:430px;padding:50px 50px 44px;box-sizing:border-box;display:flex;flex-direction:column;gap:26px');
+    const top = el('', s.c); css(top, 'display:flex;align-items:center;gap:34px');
+    s.lw = el('', top); css(s.lw, 'flex:none;position:relative'); s.L = logo(s.lw, 210); logoStatic(s.L);
+    const tx = el('', top); css(tx, 'display:flex;flex-direction:column;gap:12px');
+    s.nm = el('', tx); css(s.nm, 'font-size:62px;font-weight:900;line-height:1.25'); s.nm.innerHTML = `<span style="color:var(--navy)">${BRAND.name1}</span><br><span style="color:var(--mag)">${BRAND.name2}</span>`;
+    s.badge = el('pill', tx); css(s.badge, 'align-self:flex-start;background:var(--gold);color:var(--ink);font-size:36px;padding:8px 30px'); s.badge.textContent = BRAND.badge;
+    s.slog = el('', s.c); css(s.slog, 'font-size:40px;font-weight:700;color:var(--mute)'); s.slog.textContent = BRAND.slogan;
+    s.addr = el('', s.c); css(s.addr, 'display:flex;align-items:center;gap:16px;font-size:36px;font-weight:700;color:var(--ink)');
+    s.pin = img3('pin', s.addr, 64); el('', s.addr, 'span').textContent = BRAND.addrShort;
+    const btns = el('', s.c); css(btns, 'display:flex;gap:20px;margin-top:6px');
+    s.btns = [['phone', 'اتصال'], ['pin', 'الاتجاهات'], ['star', 'حفظ']].map(([ic, t]) => { const b = el('pill', btns); css(b, 'background:#eef2fb;color:var(--navy);font-size:36px;padding:14px 30px'); const im = img3(ic, b, 50); el('', b, 'span').textContent = t; b._im = im; return b; });
+    s.ghost = [0, 1].map(i => { const g = el('card abs', s.root); css(g, `left:60px;width:960px;height:200px;top:${1290 + i * 240}px;opacity:.5;display:flex;flex-direction:column;gap:24px;padding:44px 50px;box-sizing:border-box`); [70, 45].forEach(w => css(el('', g), `height:30px;border-radius:15px;background:#e6e9f2;width:${w}%`)); return g; });
+    s.tap = el('abs', s.root); css(s.tap, 'width:150px;height:150px;border-radius:50%;border:8px solid var(--mag);opacity:0');
+    s.flood = el('abs', s.root); css(s.flood, 'border-radius:50%;background:var(--navy);width:10px;height:10px;opacity:0;z-index:5');
+  },
+  upd(s, lt) {
+    drift(s.bl, lt + 6);
+    const m = spring(lt - .1, 170, 22); s.c.style.opacity = clamp(m * 2); s.c.style.transform = `translateY(${(1 - m) * 160}px) scale(${.94 + .06 * m})`;
+    s.badge.style.transform = `scale(${spring(lt - .45, 260, 18)})`;
+    s.btns.forEach((b, i) => { pop(b, lt, .65 + i * .12); });
+    s.ghost.forEach((g, i) => { const k = spring(lt - .4 - i * .15, 170, 24); g.style.opacity = .55 * clamp(k * 2); g.style.transform = `translateY(${(1 - k) * 120}px)`; });
+    // tap on the logo, then dive into it
+    const r = s.lw.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2; s.cx = cx; s.cy = cy;
+    const tp = clamp((lt - 1.4) / .45); s.tap.style.left = (cx - 75) + 'px'; s.tap.style.top = (cy - 75) + 'px'; s.tap.style.opacity = tp > 0 && tp < 1 ? 1 - tp : 0; s.tap.style.transform = `scale(${.6 + tp * .9})`;
+    s.lw.style.transform = `scale(${lt > 1.4 && lt < 1.65 ? .94 : 1})`;
+    const R = Math.hypot(Math.max(cx, W - cx), Math.max(cy, H - cy)) * 1.05; const f = prog(lt, 1.72, 2.2, eio);
+    s.flood.style.opacity = f > 0 ? 1 : 0; s.flood.style.left = (cx - 5) + 'px'; s.flood.style.top = (cy - 5) + 'px'; s.flood.style.transform = `scale(${f * R / 5})`;
+  },
+  cues() { return [[.1, 'whoosh', .4], [.45, 'pop', .5], [.65, 'pop', .35], [.77, 'pop', .35], [.89, 'pop', .35], [1.4, 'pop', .7], [1.72, 'rise', .6]]; }
+};
+
+const TILE = ['#f2b829', '#c2185b', '#1a6ad2', '#e2205a'];
+T.nour = {
+  build(s) {
+    s.root.style.background = 'radial-gradient(ellipse at 50% 40%,#2c54a8 0%,#21418a 55%,#172f66 100%)';
+    s.lab = el('abs center', s.root); css(s.lab, 'top:430px'); s.lp = el('pill', s.lab); css(s.lp, 'background:var(--gold);color:var(--ink);font-size:56px;padding:14px 44px'); s.lp.textContent = BRAND.badge;
+    s.tiles = BRAND.method.tiles.map((ch, i) => { const t = el('abs', s.root); css(t, `width:200px;height:200px;border-radius:44px;background:${TILE[i]};color:#fff;font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 0 rgba(0,0,0,.18);left:${790 - i * 230}px;top:840px;line-height:1`); t.textContent = ch; return t; });
+    s.nwr = BRAND.method.wordTiles.map((ch, i) => { const t = el('abs', s.root); css(t, `width:200px;height:200px;border-radius:44px;background:#fff;color:var(--navy);font-size:130px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 0 rgba(0,0,0,.18);top:840px;line-height:1`); t.textContent = ch; t._x0 = 680 - i * 280; return t; });
+    s.word = el('abs center', s.root); css(s.word, 'top:780px;font-size:300px;font-weight:900;color:var(--gold);line-height:1.2;text-shadow:0 0 80px rgba(242,184,41,.45)'); s.word.textContent = BRAND.method.word;
+    s.cap = el('abs center', s.root); css(s.cap, 'top:1250px;font-size:76px;font-weight:900;color:#fff;line-height:1.35'); s.cw = words(s.cap, BRAND.method.line);
+    s.ics = [['openbook', 110, 1530, 200], ['pencil', 770, 1560, 170], ['crayon', 110, 560, 150], ['sparkles', 830, 580, 140]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
+  },
+  upd(s, lt) {
+    const lp = spring(lt - .45, 240, 18); s.lab.style.opacity = clamp(lp * 2); s.lab.style.transform = `scale(${lp})`;
+    s.tiles.forEach((t, i) => { const m = spring(lt - .8 - i * .2, 260, 16); const out = prog(lt, 2.3 + i * .05, 2.7 + i * .05, ei); t.style.opacity = clamp(m * 3) * (1 - out); t.style.transform = `translateY(${(1 - m) * 200 + out * 260}px) rotate(${(1 - m) * (i % 2 ? 20 : -20) + out * (i % 2 ? 30 : -30)}deg) scale(${.4 + .6 * m})`; });
+    const mg = prog(lt, 3.35, 3.8, eio);
+    s.nwr.forEach((t, i) => { const m = spring(lt - 2.65 - i * .15, 260, 18); const x = lerp(t._x0, 440, mg); t.style.left = x + 'px'; t.style.opacity = clamp(m * 3) * (1 - prog(lt, 3.75, 3.95)); t.style.transform = `scale(${(.4 + .6 * m) * (1 - .3 * mg)})`; });
+    const wm = spring(lt - 3.8, 220, 16); s.word.style.opacity = clamp(wm * 3); s.word.style.transform = `scale(${.5 + .5 * wm})`;
+    animWords(s.cw, lt, 4.2, .1);
+    s.ics.forEach((i, k) => float3(i, lt, 1.2 + k * .3, k * 2));
+  },
+  cues() { return [[.45, 'pop', .6], [.8, 'pop', .45], [1.0, 'pop', .45], [1.2, 'pop', .45], [1.4, 'pop', .45], [2.3, 'whoosh', .4], [2.65, 'pop', .4], [2.8, 'pop', .4], [2.95, 'pop', .4], [3.8, 'ding', .6], [4.2, 'swish', .3]]; }
+};
+
+T.values = {
+  build(s) {
+    s.root.style.background = 'var(--cream)'; s.bl = blobs(s.root, ['#c2185b', '#f2b829', '#1a6ad2']);
+    s.t = el('abs center', s.root); css(s.t, 'top:300px;font-size:80px;font-weight:900;line-height:1.3'); s.tw = words(s.t, BRAND.valuesTitle);
+    s.cards = BRAND.values.map(([t, ic, bg], i) => { const x = i ? 80 : 600;
+      const c = el('abs', s.root); css(c, `left:${x}px;top:720px;width:400px;height:480px;border-radius:52px;background:${bg};color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;box-shadow:0 30px 60px rgba(33,65,138,.25)`);
+      const im = img3(ic, c, 190); const l = el('', c); css(l, 'font-size:92px;font-weight:900'); l.textContent = t; c._im = im; return c;
+    });
+    s.plus = el('abs', s.root); css(s.plus, 'left:490px;top:900px;width:100px;height:100px;border-radius:50%;background:var(--gold);color:var(--ink);font-size:80px;font-weight:900;display:flex;align-items:center;justify-content:center;line-height:1'); s.plus.textContent = '+';
+    s.b = el('abs center', s.root); css(s.b, 'top:1320px;font-size:84px;font-weight:900;line-height:1.3'); s.bw = words(s.b, BRAND.valuesLine);
+    s.seed = img3('seedling', s.root, 150); css(s.seed, 'position:absolute;left:465px;top:1560px');
+  },
+  upd(s, lt) {
+    drift(s.bl, lt + 12);
+    { const la = [.1, 2.1], cnt = {}; s.tw.forEach(w => { const L = w._line; cnt[L] = cnt[L] || 0; const t0 = la[L] + cnt[L]++ * .2; const p = eo((lt - t0) / .7); w.style.transform = `translateY(${(1 - p) * 118}%) rotate(${(1 - p) * -4}deg)`; }); }
+    s.cards.forEach((c, i) => { const m = spring(lt - 4.4 - i * .78, 200, 18); c.style.opacity = clamp(m * 2); c.style.transform = `translateY(${(1 - m) * 260}px) rotate(${(1 - m) * (i ? -8 : 8) + Math.sin(lt * 1.2 + i) * 1.2}deg)`; float3(c._im, lt, 4.55 + i * .78, i * 2, .6); });
+    pop(s.plus, lt, 4.9);
+    animWords(s.bw, lt, 3.4, .14);
+    float3(s.seed, lt, 3.8);
+  },
+  cues() { return [[.1, 'swish', .3], [2.1, 'swish', .3], [3.4, 'swish', .3], [3.8, 'ding', .45], [4.4, 'whoosh', .4], [4.9, 'pop', .5], [5.18, 'whoosh', .4]]; }
+};
+
+T.address = {
+  build(s) {
+    s.root.style.background = '#eef3fb';
+    s.t = el('abs center', s.root); css(s.t, 'top:250px;font-size:92px;font-weight:900'); s.tw = words(s.t, BRAND.placeTitle);
+    const map = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); map.setAttribute('viewBox', '0 0 1080 900'); map.setAttribute('width', 1080); map.setAttribute('height', 900); map.style.cssText = 'position:absolute;left:0;top:470px';
+    map.innerHTML = `
+      <rect x="60" y="20" width="960" height="860" rx="60" fill="#fff"/>
+      <g stroke="#dfe6f3" stroke-width="22" stroke-linecap="round" fill="none">
+        <path class="m" d="M120 200 L960 200"/><path class="m" d="M120 690 L960 690"/><path class="m" d="M260 60 L260 840"/><path class="m" d="M820 60 L820 840"/>
+      </g>
+      <path class="m main" d="M100 470 L980 470" stroke="#f2b829" stroke-width="54" stroke-linecap="round" fill="none"/>
+      <path class="m side" d="M560 470 L560 80" stroke="#21418a" stroke-width="38" stroke-linecap="round" fill="none"/>`;
+    s.root.appendChild(map);
+    s.paths = [...map.querySelectorAll('.m')]; s.paths.forEach(p => { p.setAttribute('pathLength', '1'); p.style.strokeDasharray = '1'; });
+    s.l1 = el('abs', s.root); css(s.l1, 'left:120px;top:960px;font-size:38px;font-weight:900;color:#8a6a10'); s.l1.textContent = BRAND.streetMain;
+    s.l2 = el('abs', s.root); css(s.l2, 'left:600px;top:620px;font-size:38px;font-weight:900;color:var(--navy)'); s.l2.textContent = BRAND.streetSide;
+    s.pin = img3('pin', s.root, 170); css(s.pin, 'position:absolute;left:475px;top:760px');
+    s.note = el('abs', s.root); css(s.note, 'left:110px;top:1335px;font-size:28px;font-weight:700;color:var(--mute)'); s.note.textContent = 'خريطة توضيحية';
+    s.lm = BRAND.landmarks.map(([t, x, y]) => { const c = el('pill abs', s.root); css(c, `left:${x}px;top:${y}px;background:#fff;color:var(--ink);font-size:34px;padding:12px 26px;box-shadow:0 10px 26px rgba(33,65,138,.15)`); c.textContent = t; return c; });
+    s.box = el('card abs', s.root); css(s.box, 'left:60px;width:960px;top:1430px;padding:40px 48px;box-sizing:border-box;font-size:42px;font-weight:700;line-height:1.5;display:flex;gap:24px;align-items:flex-start');
+    s.bi = img3('pin', s.box, 80); const bt = el('', s.box); bt.innerHTML = `<b style="color:var(--navy)">${BRAND.addrFull}</b><br><span style="color:var(--mute);font-size:36px">${BRAND.addrNote}</span>`;
+  },
+  upd(s, lt) {
+    animWords(s.tw, lt, .3, .12);
+    s.paths.forEach((p, i) => p.style.strokeDashoffset = 1 - prog(lt, .4 + i * .12, 1.1 + i * .12, eio));
+    s.l1.style.opacity = prog(lt, 4.0, 4.4); s.note.style.opacity = prog(lt, 1.2, 1.6); s.l2.style.opacity = prog(lt, 1.65, 2.0);
+    const d = spring(lt - 1.75, 240, 14); s.pin.style.opacity = lt > 1.75 ? 1 : 0; s.pin.style.transform = `translateY(${(1 - d) * -500}px) scale(${1 + .03 * Math.sin(lt * 4)})`;
+    s.lm.forEach((c, i) => pop(c, lt, 5.25 + i * .3));
+    rise(s.box, lt, 2.3, 120); float3(s.bi, lt, 2.5);
+  },
+  cues() { return [[.3, 'swish', .3], [.4, 'whoosh', .3], [1.75, 'stamp', .5], [2.3, 'whoosh', .35], [4.0, 'tick', .4], [5.25, 'pop', .45], [5.55, 'pop', .4], [5.85, 'pop', .4]]; }
+};
+
+T.end = {
+  build(s) {
+    s.root.style.background = '#fff'; s.bl = blobs(s.root, ['#f2b829', '#1a6ad2', '#c2185b']); s.bl.forEach(b => b.style.opacity = .16);
+    s.lw = el('abs', s.root); css(s.lw, 'left:330px;top:220px'); s.L = logo(s.lw, 420);
+    s.nm = el('abs center', s.root); css(s.nm, 'top:670px;font-size:96px;font-weight:900;line-height:1.25'); s.nw = words(s.nm, BRAND.name1.split(' ').map(w => '_' + w + '_').join(' ') + '\n' + BRAND.name2.split(' ').map(w => '*' + w + '*').join(' '));
+    s.badge = el('abs center', s.root); css(s.badge, 'top:940px'); s.bp = el('pill', s.badge); css(s.bp, 'background:var(--gold);color:var(--ink);font-size:52px;padding:12px 44px'); s.bp.textContent = BRAND.badge;
+    s.sl = el('abs center', s.root); css(s.sl, 'top:1060px;font-size:46px;font-weight:700;color:var(--mute)'); s.sw = words(s.sl, BRAND.slogan);
+    s.mg = el('abs center', s.root); css(s.mg, 'top:1150px;font-size:44px;font-weight:700;color:var(--ink)'); s.mg.innerHTML = BRAND.manager;
+    s.cta = el('abs center', s.root); css(s.cta, 'top:1255px'); s.cb = el('pill', s.cta); css(s.cb, 'background:var(--mag);color:#fff;font-size:60px;padding:22px 64px;box-shadow:0 18px 40px rgba(194,24,91,.35)'); s.cb.textContent = BRAND.cta;
+    s.phl = el('abs center', s.root); css(s.phl, 'top:1405px;font-size:40px;font-weight:700;color:var(--mute)'); s.phl.textContent = BRAND.phoneLabel;
+    s.ph = el('abs center', s.root); css(s.ph, 'top:1470px'); s.pb = el('pill', s.ph); css(s.pb, 'background:var(--navy);color:#fff;font-size:76px;padding:18px 54px;letter-spacing:2px;box-shadow:0 18px 40px rgba(33,65,138,.3)');
+    s.pi = img3('phone', s.pb, 84); const pn = el('', s.pb, 'span'); pn.style.direction = 'ltr'; s.dg = BRAND.phoneGroups.map(g => { const sp = el('', pn, 'span'); sp.textContent = g; sp.style.display = 'inline-block'; return sp; });
+    s.ics = [['star', 140, 260, 120], ['balloon', 830, 220, 150], ['backpack', 110, 1660, 150], ['crayon', 840, 1680, 130]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
+  },
+  upd(s, lt) {
+    drift(s.bl, lt + 20);
+    const lm = spring(lt - .1, 200, 20); s.lw.style.transform = `scale(${.6 + .4 * lm}) translateY(${Math.sin(lt * 1.4) * 6}px)`; s.lw.style.opacity = clamp(lm * 3);
+    logoAnim(s.L, lt, .15);
+    animWords(s.nw, lt, .25, .3);
+    const b = spring(lt - 1.3, 260, 18); s.badge.style.opacity = clamp(b * 2); s.badge.style.transform = `scale(${b})`;
+    animWords(s.sw, lt, 1.6, .06);
+    rise(s.mg, lt, 2.45, 30);
+    const c = spring(lt - 4.3, 240, 16); s.cta.style.opacity = clamp(c * 2); s.cb.style.transform = `scale(${c * (1 + .03 * Math.sin(Math.max(0, lt - 4.9) * 5))})`;
+    rise(s.phl, lt, 5.95, 20);
+    const p = spring(lt - 6.1, 240, 16); s.ph.style.opacity = clamp(p * 2); s.pb.style.transform = `scale(${p})`; float3(s.pi, lt, 6.2, 0, .6);
+    const DG = [7.5, 8.55, 9.68, 10.78];
+    s.dg.forEach((g, i) => { const on = lt >= DG[i] && (i === 3 ? lt < DG[i] + 1.6 : lt < DG[i + 1]); const k = spring(lt - DG[i], 320, 18); g.style.color = on ? 'var(--gold)' : '#fff'; g.style.transform = `translateY(${on ? -8 * Math.min(1, k) : 0}px) scale(${on ? 1 + .12 * Math.min(1, k) : 1})`; });
+    s.ics.forEach((i, k) => float3(i, lt, 1.6 + k * .25, k * 2));
+  },
+  cues() { return [[.1, 'rise', .5], [.25, 'swish', .3], [.75, 'pop', .5], [.9, 'pop', .5], [1.15, 'ding', .6], [1.3, 'pop', .5], [2.45, 'swish', .3], [4.3, 'hit', .7], [6.1, 'pop', .6], [7.5, 'tick', .5], [8.55, 'tick', .5], [9.68, 'tick', .5], [10.78, 'tick', .5]]; }
+};
+
+
+const SUBJ = BRAND.services;
+const SUBC = ['var(--navy)', 'var(--blue)', 'var(--mag)', 'var(--red)', 'var(--navy)', 'var(--mag)', 'var(--blue)', 'var(--red)'];
+// card i pops on the VO word that names it: set from words.json (seconds from the scene start)
+const SUBT = [1.2, 2.24, 3.08, 3.7, 4.56, 5.94];
+T.subjects = {
+  build(s) {
+    s.root.style.background = 'var(--cream)'; s.bl = blobs(s.root, ['#1a6ad2', '#f2b829', '#c2185b']);
+    s.t = el('abs center', s.root); css(s.t, 'top:280px;font-size:88px;font-weight:900;line-height:1.3'); s.tw = words(s.t, BRAND.servicesTitle);
+    s.cards = SUBJ.map(([t, ic, en], i) => {
+      const row = Math.floor(i / 3), col = i % 3, inRow = row === 2 ? 1 : 3;
+      const x = row === 2 ? 550 - col * 300 : 690 - col * 300, y = 520 + row * 330;
+      const c = el('card abs', s.root); css(c, `left:${x}px;top:${y}px;width:280px;height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:40px;border-bottom:10px solid ${SUBC[i % SUBC.length]}`);
+      const im = img3(ic, c, 130); const l = el('', c); const long = t.includes(' '); css(l, `font-size:${long ? 46 : 62}px;font-weight:900;color:${SUBC[i % SUBC.length]};line-height:1.1;text-align:center`); l.textContent = t;
+      if (en) { const e = el('', c); css(e, 'font-size:30px;font-weight:700;color:var(--mute);direction:ltr;margin-top:-4px'); e.textContent = en; }
+      c._im = im; return c;
+    });
+    
+  },
+  upd(s, lt) {
+    drift(s.bl, lt + 30);
+    animWords(s.tw, lt, .55, .12);
+    s.cards.forEach((c, i) => { const t0 = SUBT[i] - .08; const m = spring(lt - t0, 240, 17); c.style.opacity = clamp(m * 2.5); c.style.transform = `translateY(${(1 - m) * 120}px) scale(${.6 + .4 * m}) rotate(${(1 - m) * (i % 2 ? 8 : -8)}deg)`; float3(c._im, lt, t0 + .05, i * 1.7, .5); });
+      },
+  cues() { const c = [[.55, 'swish', .3]]; SUBT.forEach(t => c.push([t - .08, 'pop', .5])); return c; }
+};
+
+
+T.teachers = {
+  build(s) {
+    s.root.style.background = 'radial-gradient(ellipse at 50% 35%,#fff7e3 0%,var(--cream) 60%)'; s.bl = blobs(s.root, ['#f2b829', '#c2185b']);
+    s.ics = [['tw', 150, 520, 250], ['teacher', 415, 450, 270], ['tm', 690, 520, 250]].map(([n, x, y, z]) => { const i = img3(n, s.root, z); css(i, `position:absolute;left:${x}px;top:${y}px`); return i; });
+    s.qb = img3('openbook', s.root, 170); css(s.qb, 'position:absolute;left:455px;top:800px');
+    s.sp = img3('sparkles', s.root, 110); css(s.sp, 'position:absolute;left:640px;top:780px');
+    s.t = el('abs center', s.root); css(s.t, 'top:1050px;font-size:86px;font-weight:900;line-height:1.35'); s.tw = words(s.t, BRAND.team);
+  },
+  upd(s, lt) {
+    drift(s.bl, lt + 40);
+    s.ics.forEach((i, k) => float3(i, lt, .2 + [1, 0, 2][k] * .25, k * 2));
+    float3(s.qb, lt, 3.6, 1); float3(s.sp, lt, 3.85, 3);
+    const la = [.85, 1.85, 2.7]; const cnt = {};
+    s.tw.forEach(w => { const L = w._line; cnt[L] = cnt[L] || 0; const t0 = la[L] + cnt[L]++ * .12; const p = eo((lt - t0) / .7); w.style.transform = `translateY(${(1 - p) * 118}%) rotate(${(1 - p) * -4}deg)`; });
+  },
+  cues() { return [[.2, 'pop', .5], [.45, 'pop', .5], [.7, 'pop', .5], [.85, 'swish', .3], [2.7, 'swish', .3], [3.6, 'ding', .5]]; }
+};
+
+// ---------- film (estimated VO timing; resync once the voiceover arrives) ----------
+sc(0, 4.4, 'search');
+sc(4.4, 6.6, 'result');
+sc(6.6, 12.44, 'nour', { reveal: 'flood' });
+sc(12.44, 21.3, 'subjects');
+sc(21.3, 25.94, 'teachers');
+sc(25.94, 32.04, 'values');
+sc(32.04, 38.16, 'address');
+sc(38.16, 53, 'end');
+
+function buildAll() {
+  S.forEach((s, i) => { s.root = el('sc', stage); s.root.style.zIndex = 10 + i; T[s.type].build(s); s.root.style.display = 'none'; });
+  window.CUES = [];
+  S.forEach(s => T[s.type].cues(s).forEach(([lt, k, g]) => { if (lt < s.t1 - s.t0 + .6) CUES.push([+(s.t0 + lt).toFixed(3), k, g]); }));
+  CUES.sort((a, b) => a[0] - b[0]);
+}
+window.seek = (t) => {
+  S.forEach((s, i) => {
+    const lt = t - s.t0, d = s.t1 - s.t0, next = S[i + 1];
+    const visible = lt >= 0 && (lt < d || (next && t < next.t0 + .6));
+    if (!visible) { s.root.style.display = 'none'; return; }
+    s.root.style.display = 'block';
+    T[s.type].upd(s, lt, d);
+    // entrance: circle reveal (first scene and the flood-dive scene come in clean)
+    if (i > 0 && s.reveal !== 'flood') {
+      const p = prog(lt, 0, .6, eio); const prev = S[i - 1];
+      const cx = W / 2, cy = H * .55; const R = Math.hypot(W, H) * .62;
+      s.root.style.clipPath = p < 1 ? `circle(${p * R}px at ${cx}px ${cy}px)` : 'none';
+    } else s.root.style.clipPath = 'none';
+  });
+};
+document.fonts.ready.then(() => Promise.all([400, 700, 900].map(w => document.fonts.load(`${w} 40px K`, 'أكاديمية 0123')))).then(() => {
+  buildAll(); return Promise.all(IMGS.map(i => i.decode().catch(() => console.error('img', i.src))));
+}).then(() => { seek(0); window.ready = true; });
+</script>
+</body>
+</html>
